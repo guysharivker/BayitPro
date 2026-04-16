@@ -4103,3 +4103,180 @@ body.has-sidebar #sim-panel {
     min-height: 44px;
   }
 }
+
+/* =====================================================================
+   MOBILE UX FIX LAYER  (max-width: 768px, appended after all earlier
+   breakpoints so these rules win for all phone-sized viewports)
+   ===================================================================== */
+
+@media (max-width: 768px) {
+
+  /* ── 1. Topbar: stay single row ───────────────────────────────────
+     The 720px block sets flex-wrap:wrap + topbar-status:width:100%,
+     which pushes the status chips to a second row.  The --topbar-h
+     variable stays at 60px, so the sticky tab bar and sidebar top
+     offset are both ~40px too low.  Override here to keep one row.   */
+  .topbar-inner {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar-status {
+    width: auto;
+    flex-shrink: 0;
+    gap: 4px;
+  }
+
+  /* Timestamp (last-refresh) is not useful on a small screen */
+  .refresh-note { display: none; }
+
+  /* Collapse live-indicator to dot only — label wastes width */
+  .live-chip { padding: 5px 7px; }
+  .live-chip .chip-text { display: none; }
+
+  /* Global search has no room on phone; hidden via class for admins
+     but also force-hide by breakpoint so layout doesn't break       */
+  .topbar-search { display: none !important; }
+
+  /* ── 2. Input font-size: prevent iOS auto-zoom on focus ──────────
+     iOS zooms any focused input whose font-size < 16px.  The app
+     uses 0.9 rem (≈ 14.4px) everywhere, so every tap zooms the
+     page.  Override to 1rem (= 16px) for all form controls.        */
+  input,
+  select,
+  textarea,
+  .schedule-date-input {
+    font-size: 1rem;
+  }
+
+  /* ── 3. Sim / DEMO panel: sit above the bottom nav bar ───────────
+     The 720px block places the panel at bottom:12px, which puts it
+     directly behind the fixed bottom nav (≈56px).  Raise it.       */
+  #sim-panel {
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── 4. Shell padding: respect iPhone home-indicator safe area ── */
+  body.has-sidebar .shell {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── 5. Bottom nav: safe-area-aware height ───────────────────────*/
+  .sidebar-mobile-bottom {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  /* ── 6. Modals: safe area on bottom edge ─────────────────────────
+     The 720px bottom-sheet modal has fixed padding; extend it for
+     phones with a home bar.                                         */
+  .modal-card {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ── 7. View tabs: guarantee no-wrap + scroll (belt & braces) ────
+     The 720px block already sets overflow-x:auto; flex-wrap:nowrap
+     but the 768px block above doesn't touch it.  Confirm here so
+     both dashboard (5 tabs) and area (6 tabs) scroll horizontally.  */
+  .view-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .view-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* ── 8. Financial / payroll header rows: stack on small screens── */
+  .financial-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .financial-range-controls {
+    width: 100%;
+  }
+
+  .financial-range-controls input[type="date"] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .payroll-head-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .payroll-month-picker {
+    width: 100%;
+  }
+
+  /* ── 9. Area view header: stack back-btn and switcher ────────────*/
+  .area-view-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  /* ── 10. Schedule controls: don't overflow on narrow screens ─────*/
+  .schedule-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .schedule-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .schedule-nav {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── 11. Ticket detail panel: true full-screen on mobile ─────────*/
+  .ticket-detail-panel {
+    top: 0;
+    width: 100vw;
+    border-radius: 0;
+  }
+
+  .ticket-detail-header {
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  }
+
+  /* Larger close button tap target */
+  .ticket-detail-panel .modal-close {
+    width: 44px;
+    height: 44px;
+    font-size: 1.6rem;
+  }
+
+  /* ── 12. Side-card padding: recover space on phone ───────────────*/
+  .side-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  /* ── 13. Insights grid: single column (also handled at 1120px but
+     confirm here for phones that only hit the 768 breakpoint)      */
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ── 14. Worker detail modal: full-height bottom sheet ───────────*/
+  .worker-detail-card,
+  .payroll-report-card {
+    width: 100%;
+    max-height: 94vh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+}
