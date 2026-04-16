@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: bayitpro-backend
+    env: python
+    plan: free                          # upgrade to starter for always-on
+    region: frankfurt                   # or oregon / singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+
+    envVars:
+      - key: ENV
+        value: production
+
+      # Injected automatically from the database below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bayitpro-db
+          property: connectionString
+
+      # Set these manually in the Render dashboard (mark as secret)
+      - key: JWT_SECRET_KEY
+        generateValue: true             # Render generates a random value on first deploy
+
+      - key: ALLOWED_ORIGINS
+        sync: false                     # set to your Vercel URL after first deploy
+
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+
+      - key: TWILIO_VERIFY_SIGNATURE
+        value: "false"                  # set to true once you configure Twilio webhook URL
+
+databases:
+  - name: bayitpro-db
+    plan: free                          # 1 GB, expires after 90 days on free tier
+    region: frankfurt

@@ -1,0 +1,33 @@
+{
+  "outputDirectory": "app/static",
+  "rewrites": [
+    { "source": "/login",                  "destination": "/login.html" },
+    { "source": "/health",                 "destination": "https://RENDER_BACKEND_URL/health" },
+    { "source": "/auth/:path*",            "destination": "https://RENDER_BACKEND_URL/auth/:path*" },
+    { "source": "/areas/:path*",           "destination": "https://RENDER_BACKEND_URL/areas/:path*" },
+    { "source": "/areas",                  "destination": "https://RENDER_BACKEND_URL/areas" },
+    { "source": "/tickets/:path*",         "destination": "https://RENDER_BACKEND_URL/tickets/:path*" },
+    { "source": "/tickets",                "destination": "https://RENDER_BACKEND_URL/tickets" },
+    { "source": "/buildings/:path*",       "destination": "https://RENDER_BACKEND_URL/buildings/:path*" },
+    { "source": "/buildings",              "destination": "https://RENDER_BACKEND_URL/buildings" },
+    { "source": "/companies/:path*",       "destination": "https://RENDER_BACKEND_URL/companies/:path*" },
+    { "source": "/companies",              "destination": "https://RENDER_BACKEND_URL/companies" },
+    { "source": "/company/:path*",         "destination": "https://RENDER_BACKEND_URL/company/:path*" },
+    { "source": "/attendance/:path*",      "destination": "https://RENDER_BACKEND_URL/attendance/:path*" },
+    { "source": "/payroll/:path*",         "destination": "https://RENDER_BACKEND_URL/payroll/:path*" },
+    { "source": "/schedule/:path*",        "destination": "https://RENDER_BACKEND_URL/schedule/:path*" },
+    { "source": "/messages",               "destination": "https://RENDER_BACKEND_URL/messages" },
+    { "source": "/suppliers",              "destination": "https://RENDER_BACKEND_URL/suppliers" },
+    { "source": "/webhook/:path*",         "destination": "https://RENDER_BACKEND_URL/webhook/:path*" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options",        "value": "DENY" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}

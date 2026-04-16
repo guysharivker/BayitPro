@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+  <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BayitPro - שליטה תפעולית</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+  <link rel="stylesheet" href="/static/style.css?v=8">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <button
+          id="user-menu-toggle"
+          class="brand-mark"
+          type="button"
+          aria-label="תפריט משתמש"
+          aria-haspopup="true"
+          aria-expanded="false"
+          onclick="toggleUserMenu()"
+        >
+          BP
+        </button>
+        <div class="brand-text">
+          <div id="brand-title" class="brand-title">BayitPro אחזקה</div>
+          <div class="brand-subtitle">שליטה בזמן אמת על אזורים, בניינים וקריאות</div>
+        </div>
+      </div>
+      <!-- Global search -->
+      <div class="topbar-search superadmin-only" id="global-search-wrap">
+        <input
+          type="search"
+          id="global-search-input"
+          class="global-search-input"
+          placeholder="חיפוש בניין / קריאה..."
+          autocomplete="off"
+          oninput="onGlobalSearch(this.value)"
+          onfocus="onGlobalSearchFocus()"
+        >
+        <div id="global-search-results" class="global-search-results hidden"></div>
+      </div>
+
+      <div class="topbar-status">
+        <button id="alerts-btn" class="alerts-btn superadmin-only" onclick="toggleAlertsDrawer()" title="התראות">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="alerts-badge" class="alerts-badge hidden">0</span>
+        </button>
+        <div class="live-chip" title="חיבור בזמן אמת">
+          <span id="connection-status" class="status-dot disconnected"></span>
+          <span id="connection-text" class="chip-text">מתחבר</span>
+        </div>
+        <time id="last-refresh" class="refresh-note" datetime="">טרם נטען</time>
+      </div>
+      <div id="user-menu" class="user-menu hidden" role="menu" aria-label="תפריט משתמש">
+        <div class="user-menu-title" id="user-menu-name">BayitPro</div>
+        <div class="user-menu-item muted" id="user-menu-role"></div>
+        <div class="user-menu-separator"></div>
+        <button class="user-menu-item user-menu-logout" type="button" onclick="logout()">יציאה מהמערכת</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Alerts drawer -->
+  <div id="alerts-drawer" class="alerts-drawer hidden" role="dialog" aria-label="מרכז התראות">
+    <div class="alerts-drawer-header">
+      <h3>מרכז התראות</h3>
+      <button class="modal-close" onclick="toggleAlertsDrawer()">&times;</button>
+    </div>
+    <div id="alerts-drawer-content" class="alerts-drawer-content">
+      <div class="loading-state">טוען...</div>
+    </div>
+  </div>
+  <div id="alerts-drawer-backdrop" class="alerts-drawer-backdrop hidden" onclick="toggleAlertsDrawer()"></div>
+
+  <!-- Persistent sidebar nav -->
+  <aside id="main-sidebar" class="main-sidebar" aria-label="ניווט ראשי">
+    <nav class="sidebar-nav" role="navigation">
+      <button class="sidebar-item active" id="snav-dashboard" onclick="sidebarNav('dashboard')" title="דשבורד">
+        <span class="sidebar-icon">🏠</span>
+        <span class="sidebar-label">דשבורד</span>
+      </button>
+      <button class="sidebar-item non-worker-only" id="snav-tickets" onclick="sidebarNav('tickets')" title="קריאות">
+        <span class="sidebar-icon">📋</span>
+        <span class="sidebar-label">קריאות</span>
+        <span id="snav-tickets-badge" class="sidebar-badge hidden">0</span>
+      </button>
+      <button class="sidebar-item" id="snav-schedule" onclick="sidebarNav('schedule')" title="לוח שיבוצים">
+        <span class="sidebar-icon">📅</span>
+        <span class="sidebar-label">לוח שיבוצים</span>
+      </button>
+      <button class="sidebar-item non-worker-only" id="snav-attendance" onclick="sidebarNav('attendance')" title="נוכחות">
+        <span class="sidebar-icon">✅</span>
+        <span class="sidebar-label">נוכחות</span>
+      </button>
+      <button class="sidebar-item non-worker-only" id="snav-payroll" onclick="sidebarNav('payroll')" title="שכר">
+        <span class="sidebar-icon">💰</span>
+        <span class="sidebar-label">שכר</span>
+      </button>
+    </nav>
+    <!-- Bottom nav for mobile -->
+    <div class="sidebar-mobile-bottom" id="mobile-bottom-nav">
+      <button class="mobile-nav-item active" id="mnav-dashboard" onclick="sidebarNav('dashboard')">
+        <span class="mobile-nav-icon">🏠</span>
+        <span class="mobile-nav-label">בית</span>
+      </button>
+      <button class="mobile-nav-item worker-only" id="mnav-schedule" onclick="sidebarNav('schedule')">
+        <span class="mobile-nav-icon">📅</span>
+        <span class="mobile-nav-label">שיבוצים</span>
+      </button>
+      <button class="mobile-nav-item" id="mnav-report" onclick="openReportProblemModal()">
+        <span class="mobile-nav-icon">⚠️</span>
+        <span class="mobile-nav-label">דיווח</span>
+      </button>
+      <button class="mobile-nav-item worker-only" id="mnav-payroll" onclick="openMyPayrollReport()">
+        <span class="mobile-nav-icon">💰</span>
+        <span class="mobile-nav-label">שכר</span>
+      </button>
+      <button class="mobile-nav-item non-worker-only" id="mnav-tickets" onclick="sidebarNav('tickets')">
+        <span class="mobile-nav-icon">📋</span>
+        <span class="mobile-nav-label">קריאות</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="shell">
+    <section id="dashboard-view">
+      <nav class="view-tabs" role="tablist" aria-label="ניווט דשבורד">
+        <button id="dashboard-tab-overview" class="view-tab" type="button" role="tab" aria-selected="true" onclick="showDashboardPanel('overview')">סיכום</button>
+        <button id="dashboard-tab-areas" class="view-tab non-worker-only" type="button" role="tab" aria-selected="false" onclick="showDashboardPanel('areas')">אזורים</button>
+        <button id="dashboard-tab-insights" class="view-tab non-worker-only" type="button" role="tab" aria-selected="false" onclick="showDashboardPanel('insights')">התראות ותובנות</button>
+        <button id="dashboard-tab-financial" class="view-tab superadmin-only" type="button" role="tab" aria-selected="false" onclick="showDashboardPanel('financial')">פיננסי</button>
+        <button id="dashboard-tab-my-schedule" class="view-tab worker-only" type="button" role="tab" aria-selected="false" onclick="showDashboardPanel('my-schedule')">לוח שיבוצים שלי</button>
+      </nav>
+
+      <section id="dashboard-overview-panel" class="tab-panel">
+        <!-- Worker home — shown only for WORKER role -->
+        <div id="worker-home" class="worker-home hidden"></div>
+
+        <section id="urgent-hero" class="urgent-hero non-worker-content"></section>
+        <section id="company-stats" class="stats-grid non-worker-content"></section>
+        <div class="overview-stack non-worker-content">
+          <div id="map-card" class="map-card hidden">
+            <div class="section-heading compact">
+              <div>
+                <p class="eyebrow dark">פריסת נכסים</p>
+                <h2>מפת בניינים ואזורים</h2>
+              </div>
+              <div id="map-summary" class="map-summary"></div>
+            </div>
+            <div id="company-map" class="map-canvas"></div>
+            <div class="map-legend">
+              <span class="legend-dot legend-danger"></span><span>דורש טיפול</span>
+              <span class="legend-dot legend-warning"></span><span>קריאה פתוחה</span>
+              <span class="legend-dot legend-ok"></span><span>תקין</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard-my-schedule-panel" class="tab-panel hidden worker-only">
+        <div id="my-schedule-content" class="my-schedule-content"></div>
+      </section>
+
+      <section id="dashboard-areas-panel" class="tab-panel hidden non-worker-only">
+        <div class="overview-stack">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">מפת אזורים</p>
+              <h2>מנהלי אזור ותמונת עומס</h2>
+            </div>
+          </div>
+          <div id="area-cards" class="area-grid"></div>
+        </div>
+      </section>
+
+      <section id="dashboard-insights-panel" class="tab-panel hidden non-worker-only" aria-label="תוכן ניהולי">
+        <div class="insights-grid">
+          <div class="side-card">
+            <div class="side-card-head">
+              <p class="eyebrow">מוקדים לטיפול</p>
+              <h3>התראות הנהלה</h3>
+            </div>
+            <div id="company-alerts" class="alert-stack"></div>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-head">
+              <p class="eyebrow">סיכום יומי</p>
+              <h3>מה קרה היום</h3>
+            </div>
+            <div id="daily-summary" class="insight-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="dashboard-financial-panel" class="tab-panel hidden">
+        <div class="financial-header">
+          <div class="financial-title-row">
+            <div>
+              <p class="eyebrow">מנהל ראשי</p>
+              <h2>סיכום פיננסי חברתי</h2>
+            </div>
+            <div class="financial-range-controls">
+              <input type="date" id="company-fin-from" class="schedule-date-input">
+              <span class="range-sep">עד</span>
+              <input type="date" id="company-fin-to" class="schedule-date-input">
+              <button class="btn-primary" onclick="loadCompanyFinancial()">טען</button>
+            </div>
+          </div>
+        </div>
+        <div id="company-financial-chart" class="fin-chart-wrap hidden"></div>
+        <div id="company-financial-content"></div>
+      </section>
+    </section>
+
+    <section id="area-view" class="hidden">
+      <nav class="breadcrumb-nav" aria-label="breadcrumb">
+        <ol id="area-breadcrumb" class="breadcrumb-list"></ol>
+      </nav>
+
+      <div class="area-view-head">
+        <button onclick="showDashboard()" class="back-btn" aria-label="חזרה לדשבורד">
+          <span class="back-arrow">→</span>
+          <span>חזרה לדשבורד</span>
+        </button>
+        <div class="area-switcher superadmin-only" id="area-switcher-wrap">
+          <label class="area-switcher-label">מעבר לאזור:</label>
+          <select id="area-switcher-select" class="area-switcher-select" onchange="switchAreaFromDropdown(this.value)">
+          </select>
+        </div>
+      </div>
+
+      <nav class="view-tabs" role="tablist" aria-label="ניווט אזור">
+        <button id="area-tab-overview" class="view-tab" type="button" role="tab" aria-selected="true" onclick="showAreaPanel('overview')">סיכום</button>
+        <button id="area-tab-tickets" class="view-tab" type="button" role="tab" aria-selected="false" onclick="showAreaPanel('tickets')">קריאות</button>
+        <button id="area-tab-buildings" class="view-tab" type="button" role="tab" aria-selected="false" onclick="showAreaPanel('buildings')">בניינים</button>
+        <button id="area-tab-workers" class="view-tab" type="button" role="tab" aria-selected="false" onclick="showAreaPanel('workers')">עובדים</button>
+        <button id="area-tab-schedule" class="view-tab" type="button" role="tab" aria-selected="false" onclick="showAreaPanel('schedule')">לוח שיבוצים</button>
+        <button id="area-tab-payroll" class="view-tab" type="button" role="tab" aria-selected="false" onclick="showAreaPanel('payroll')">נוכחות ושכר</button>
+      </nav>
+
+      <section id="area-overview-panel" class="tab-panel">
+        <section id="area-urgent-hero" class="urgent-hero"></section>
+        <section id="area-stats" class="stats-grid compact"></section>
+        <div id="area-map-card" class="side-card hidden overview-map-card">
+          <div class="side-card-head">
+            <p class="eyebrow dark">מיקום</p>
+            <h3>מפת אזור</h3>
+          </div>
+          <div id="area-map" class="map-canvas area-map"></div>
+        </div>
+      </section>
+
+      <section id="area-tickets-panel" class="tab-panel hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">תעדוף טיפול</p>
+            <h2>קריאות פעילות באזור</h2>
+          </div>
+        </div>
+        <div id="area-tickets" class="ticket-list"></div>
+      </section>
+
+      <section id="area-buildings-panel" class="tab-panel hidden">
+        <div class="side-card">
+          <div class="side-card-head">
+            <p class="eyebrow">בניינים</p>
+            <h3>פרופיל בניינים באזור</h3>
+            <button class="btn-primary" onclick="openAddBuildingModal()">+ הוסף בניין</button>
+          </div>
+          <div id="area-buildings" class="building-list"></div>
+        </div>
+      </section>
+
+      <section id="area-workers-panel" class="tab-panel hidden">
+        <div class="side-card">
+          <div class="side-card-head">
+            <p class="eyebrow">צוות שטח</p>
+            <h3>פרופיל עובדי האזור</h3>
+          </div>
+          <div id="area-workers" class="worker-list"></div>
+        </div>
+      </section>
+
+      <section id="area-payroll-panel" class="tab-panel hidden">
+        <div class="payroll-layout">
+
+          <div class="side-card">
+            <div class="side-card-head payroll-head-row">
+              <div>
+                <p class="eyebrow">הכנסות מול הוצאות</p>
+                <h3>סיכום פיננסי לאזור</h3>
+              </div>
+              <div class="financial-range-controls">
+                <input type="date" id="area-fin-from" class="schedule-date-input">
+                <span class="range-sep">עד</span>
+                <input type="date" id="area-fin-to" class="schedule-date-input">
+                <button class="btn-primary" onclick="loadAreaFinancial()">טען</button>
+              </div>
+            </div>
+            <div id="area-financial-content"></div>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-head">
+              <p class="eyebrow">נוכחות</p>
+              <h3>כניסה אחרונה לכל בניין</h3>
+            </div>
+            <div id="last-entry-table" class="last-entry-table"></div>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-head payroll-head-row">
+              <div>
+                <p class="eyebrow">שכר</p>
+                <h3>סיכום חודשי לפי עובד</h3>
+              </div>
+              <div class="payroll-month-picker">
+                <input type="month" id="payroll-month-picker" class="schedule-date-input">
+              </div>
+            </div>
+            <div id="area-payroll-summary" class="area-payroll-summary"></div>
+          </div>
+
+          <div class="side-card">
+            <div class="side-card-head payroll-head-row">
+              <div>
+                <p class="eyebrow">ניהול</p>
+                <h3>ניכויי ימים</h3>
+              </div>
+              <button class="btn-primary" onclick="showAddDeductionModal()">+ ניכוי חדש</button>
+            </div>
+            <div id="deductions-list" class="deductions-list"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <section id="area-schedule-panel" class="tab-panel hidden">
+        <div class="schedule-header">
+          <div class="schedule-title-row">
+            <div>
+              <p class="eyebrow">ניהול שיבוצים</p>
+              <h2>לוח עבודה יומי</h2>
+            </div>
+            <div class="schedule-controls">
+              <div class="schedule-nav">
+                <button class="sched-nav-btn" onclick="scheduleStepDay(-1)" title="יום קודם">‹</button>
+                <input type="date" id="schedule-date-picker" class="schedule-date-input" onchange="loadSchedule()">
+                <button class="sched-nav-btn" onclick="scheduleStepDay(1)" title="יום הבא">›</button>
+                <button class="sched-today-btn" onclick="scheduleGoToday()">היום</button>
+              </div>
+              <button class="btn-primary" onclick="showSwapsPanel()">החלפות מתוכננות</button>
+            </div>
+          </div>
+        </div>
+        <div id="schedule-content"></div>
+
+        <div id="swaps-panel" class="hidden">
+          <div class="schedule-header" style="margin-top:1.5rem">
+            <div class="schedule-title-row">
+              <div>
+                <p class="eyebrow">ניהול</p>
+                <h3>החלפות מתוכננות</h3>
+              </div>
+              <button class="btn-ghost" onclick="hideSwapsPanel()">סגור</button>
+            </div>
+          </div>
+          <div id="swaps-list"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Add Building modal -->
+  <div id="add-building-modal" class="modal-overlay hidden" onclick="closeAddBuildingModal(event)">
+    <div class="modal-card swap-modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeAddBuildingModal()" aria-label="סגור">&times;</button>
+      <h3 class="swap-modal-title">הוספת בניין לאזור</h3>
+      <div class="swap-modal-body">
+        <div class="form-row">
+          <label for="ab-name">שם הבניין *</label>
+          <input type="text" id="ab-name" class="schedule-date-input" placeholder="למשל: הרצל 22">
+        </div>
+        <div class="form-row">
+          <label for="ab-address">כתובת מלאה *</label>
+          <input type="text" id="ab-address" class="schedule-date-input" placeholder="למשל: הרצל 22, תל אביב">
+        </div>
+        <div class="form-row">
+          <label for="ab-city">עיר</label>
+          <input type="text" id="ab-city" class="schedule-date-input" placeholder="תל אביב">
+        </div>
+        <div class="form-row form-row-inline">
+          <div>
+            <label for="ab-floors">קומות</label>
+            <input type="number" id="ab-floors" class="schedule-date-input" min="1" max="50" placeholder="8">
+          </div>
+          <div>
+            <label for="ab-entry-code">קוד כניסה</label>
+            <input type="text" id="ab-entry-code" class="schedule-date-input" placeholder="1234#">
+          </div>
+        </div>
+        <div class="form-row form-row-checks">
+          <label><input type="checkbox" id="ab-elevator"> מעלית</label>
+          <label><input type="checkbox" id="ab-parking"> חניה</label>
+        </div>
+        <div class="form-row">
+          <label for="ab-notes">הערות</label>
+          <textarea id="ab-notes" class="schedule-date-input" rows="2" placeholder="מידע נוסף לעובד"></textarea>
+        </div>
+        <div id="ab-error" class="swap-error hidden"></div>
+        <button class="btn-primary swap-submit-btn" id="ab-submit-btn" onclick="submitAddBuilding()">הוסף בניין</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="building-modal" class="modal-overlay hidden" onclick="closeBuildingModal(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeBuildingModal()" aria-label="סגור">&times;</button>
+      <div id="building-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="sim-panel">
+    <button id="sim-toggle" type="button" onclick="toggleSimPanel()" aria-expanded="false">
+      <span class="sim-badge">DEMO</span>
+      <span>סימולציית הודעה</span>
+    </button>
+    <div id="sim-content" class="hidden">
+      <h3>שליחת הודעת דמו</h3>
+      <div class="sim-field">
+        <label for="sim-area">מספר אזור</label>
+        <select id="sim-area"></select>
+      </div>
+      <div class="sim-field">
+        <label for="sim-phone">טלפון שולח</label>
+        <input type="text" id="sim-phone" value="+972500000001" dir="ltr">
+      </div>
+      <div class="sim-field">
+        <label for="sim-message">תוכן הודעה</label>
+        <textarea id="sim-message" rows="3" placeholder="למשל: יש נזילה חזקה בחדר מדרגות הרצל 22"></textarea>
+      </div>
+      <button id="sim-send" onclick="sendSimulation()">שלח הודעה</button>
+      <div id="sim-result" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- Ticket detail slide-over -->
+  <div id="ticket-detail-overlay" class="ticket-detail-overlay hidden" onclick="closeTicketDetail(event)"></div>
+  <aside id="ticket-detail-panel" class="ticket-detail-panel hidden" aria-label="פרטי קריאה" role="dialog">
+    <div class="ticket-detail-header">
+      <button class="modal-close" onclick="closeTicketDetail()" aria-label="סגור">&times;</button>
+      <div id="ticket-detail-id" class="ticket-detail-id"></div>
+      <div id="ticket-detail-status-row" class="ticket-detail-status-row"></div>
+    </div>
+    <div id="ticket-detail-body" class="ticket-detail-body">
+      <div class="loading-state">טוען...</div>
+    </div>
+  </aside>
+
+  <div id="toast-container"></div>
+
+  <div id="swap-modal" class="modal-overlay hidden" onclick="closeSwapModal(event)">
+    <div class="modal-card swap-modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeSwapModal()" aria-label="סגור">&times;</button>
+      <h3 class="swap-modal-title">החלפת עובד יומית</h3>
+      <div class="swap-modal-body">
+        <div class="form-row">
+          <label>בניין</label>
+          <div id="swap-building-name" class="form-value"></div>
+        </div>
+        <div class="form-row">
+          <label>עובד נוכחי</label>
+          <div id="swap-original-worker" class="form-value"></div>
+        </div>
+        <div class="form-row">
+          <label for="swap-date">תאריך החלפה</label>
+          <input type="date" id="swap-date" class="schedule-date-input">
+        </div>
+        <div class="form-row">
+          <label for="swap-replacement">עובד מחליף</label>
+          <select id="swap-replacement" class="schedule-date-input"></select>
+        </div>
+        <div class="form-row">
+          <label for="swap-reason">סיבה (אופציונלי)</label>
+          <input type="text" id="swap-reason" class="schedule-date-input" placeholder="למשל: חיסור / מחלה">
+        </div>
+        <div id="swap-error" class="swap-error hidden"></div>
+        <button class="btn-primary swap-submit-btn" onclick="submitSwap()">אישור החלפה</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report problem modal (worker) -->
+  <div id="report-problem-modal" class="modal-overlay hidden" onclick="closeReportProblemModal(event)">
+    <div class="modal-card swap-modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeReportProblemModal()" aria-label="סגור">&times;</button>
+      <h3 class="swap-modal-title">דיווח על בעיה בבניין</h3>
+      <div class="swap-modal-body">
+        <div class="form-row">
+          <label for="rp-building">בניין</label>
+          <select id="rp-building" class="schedule-date-input"></select>
+        </div>
+        <div class="form-row">
+          <label for="rp-category">קטגוריה</label>
+          <select id="rp-category" class="schedule-date-input">
+            <option value="CLEANING">🧹 ניקיון</option>
+            <option value="ELECTRIC">⚡ חשמל</option>
+            <option value="PLUMBING">🚰 אינסטלציה</option>
+            <option value="ELEVATOR">🛗 מעלית</option>
+            <option value="GENERAL">🔧 כללי</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="rp-urgency">דחיפות</label>
+          <select id="rp-urgency" class="schedule-date-input">
+            <option value="LOW">נמוך</option>
+            <option value="MEDIUM" selected>בינוני</option>
+            <option value="HIGH">גבוה</option>
+            <option value="CRITICAL">קריטי</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="rp-description">תיאור הבעיה *</label>
+          <textarea id="rp-description" class="schedule-date-input" rows="3" placeholder="תאר את הבעיה בפירוט..."></textarea>
+        </div>
+        <div id="rp-error" class="swap-error hidden"></div>
+        <button class="btn-primary swap-submit-btn" id="rp-submit-btn" onclick="submitReportProblem()">שלח דיווח</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worker detail modal -->
+  <div id="worker-detail-modal" class="modal-overlay hidden" onclick="closeWorkerDetailModal(event)">
+    <div class="modal-card worker-detail-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeWorkerDetailModal()" aria-label="סגור">&times;</button>
+      <div id="worker-detail-body" class="worker-detail-body"></div>
+    </div>
+  </div>
+
+  <!-- Deduction modal -->
+  <div id="deduction-modal" class="modal-overlay hidden" onclick="closeDeductionModal(event)">
+    <div class="modal-card swap-modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeDeductionModal()" aria-label="סגור">&times;</button>
+      <h3 class="swap-modal-title">ניכוי יום עבודה</h3>
+      <div class="swap-modal-body">
+        <div class="form-row">
+          <label for="ded-worker">עובד</label>
+          <select id="ded-worker" class="schedule-date-input"></select>
+        </div>
+        <div class="form-row">
+          <label for="ded-building">בניין</label>
+          <select id="ded-building" class="schedule-date-input"></select>
+        </div>
+        <div class="form-row">
+          <label for="ded-date">תאריך</label>
+          <input type="date" id="ded-date" class="schedule-date-input">
+        </div>
+        <div class="form-row">
+          <label for="ded-reason">סיבה</label>
+          <input type="text" id="ded-reason" class="schedule-date-input" placeholder="למשל: לא הגיע לעבודה">
+        </div>
+        <div id="ded-error" class="swap-error hidden"></div>
+        <button class="btn-primary swap-submit-btn" onclick="submitDeduction()">שמור ניכוי</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worker payroll report modal -->
+  <div id="payroll-report-modal" class="modal-overlay hidden" onclick="closePayrollReportModal(event)">
+    <div class="modal-card payroll-report-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closePayrollReportModal()" aria-label="סגור">&times;</button>
+      <div class="payroll-report-head">
+        <h3 id="payroll-report-title">דוח שכר עובד</h3>
+        <div class="payroll-report-range">
+          <input type="date" id="payroll-report-from" class="schedule-date-input">
+          <span>עד</span>
+          <input type="date" id="payroll-report-to" class="schedule-date-input">
+          <button class="btn-primary" onclick="fetchPayrollReport()">טען</button>
+        </div>
+      </div>
+      <div id="payroll-report-body" class="payroll-report-body"></div>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="/static/app.js?v=8"></script>
+</body>
+</html>

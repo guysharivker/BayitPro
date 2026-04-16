@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BayitPro - כניסה</title>
+  <link rel="stylesheet" href="/static/style.css?v=2">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg, #f4f5f7); }
+    .login-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 380px;
+    }
+    .login-brand { text-align: center; margin-bottom: 2rem; }
+    .login-brand .brand-mark {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 56px; height: 56px; border-radius: 14px;
+      background: var(--accent, #3b6bff); color: #fff;
+      font-size: 1.4rem; font-weight: 800; margin-bottom: 0.75rem;
+    }
+    .login-brand h1 { font-size: 1.4rem; font-weight: 700; margin: 0; color: #1a1a2e; }
+    .login-brand p { color: #6b7280; font-size: 0.875rem; margin: 0.25rem 0 0; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.4rem; }
+    .form-group input {
+      width: 100%; padding: 0.625rem 0.875rem; border: 1.5px solid #d1d5db;
+      border-radius: 8px; font-size: 0.975rem; box-sizing: border-box;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .form-group input:focus { outline: none; border-color: var(--accent, #3b6bff); }
+    .login-btn {
+      width: 100%; padding: 0.75rem; background: var(--accent, #3b6bff); color: #fff;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; margin-top: 0.5rem; transition: opacity 0.15s;
+      font-family: inherit;
+    }
+    .login-btn:hover { opacity: 0.9; }
+    .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error-msg { color: #dc2626; font-size: 0.875rem; text-align: center; margin-top: 0.75rem; min-height: 1.25rem; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-mark">BP</div>
+      <h1>BayitPro</h1>
+      <p>שליטה תפעולית על אזורים ובניינים</p>
+    </div>
+    <form id="login-form" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label for="username">שם משתמש</label>
+        <input id="username" type="text" autocomplete="username" placeholder="admin" required>
+      </div>
+      <div class="form-group">
+        <label for="password">סיסמה</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      </div>
+      <button class="login-btn" type="submit" id="login-btn">כניסה</button>
+      <div class="error-msg" id="error-msg"></div>
+    </form>
+  </div>
+
+  <script>
+    // If already logged in, redirect to dashboard
+    if (localStorage.getItem("bp_token")) {
+      window.location.href = "/";
+    }
+
+    async function doLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById("login-btn");
+      const errorEl = document.getElementById("error-msg");
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+
+      btn.disabled = true;
+      btn.textContent = "מתחבר...";
+      errorEl.textContent = "";
+
+      try {
+        const body = new URLSearchParams({ username, password });
+        const res = await fetch("/auth/login", { method: "POST", body });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          errorEl.textContent = data.detail || "שם משתמש או סיסמה שגויים";
+          return;
+        }
+        const { access_token } = await res.json();
+        localStorage.setItem("bp_token", access_token);
+        window.location.href = "/";
+      } catch {
+        errorEl.textContent = "שגיאת תקשורת, נסה שוב";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "כניסה";
+      }
+    }
+  </script>
+</body>
+</html>
