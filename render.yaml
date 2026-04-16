@@ -12,18 +12,18 @@ services:
       - key: ENV
         value: production
 
-      # Injected automatically from the database below
+      # Paste your Supabase Postgres URI here via the Render dashboard.
+      # Format: postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
+      # Do NOT use the Supabase project URL (https://...supabase.co) — use the direct Postgres connection string.
       - key: DATABASE_URL
-        fromDatabase:
-          name: bayitpro-db
-          property: connectionString
+        sync: false
 
       # Set these manually in the Render dashboard (mark as secret)
       - key: JWT_SECRET_KEY
         generateValue: true             # Render generates a random value on first deploy
 
       - key: ALLOWED_ORIGINS
-        sync: false                     # set to your Vercel URL after first deploy
+        sync: false                     # set to your Render app URL (and Vercel URL if using split deploy)
 
       - key: ANTHROPIC_API_KEY
         sync: false
@@ -39,8 +39,3 @@ services:
 
       - key: TWILIO_VERIFY_SIGNATURE
         value: "false"                  # set to true once you configure Twilio webhook URL
-
-databases:
-  - name: bayitpro-db
-    plan: free                          # 1 GB, expires after 90 days on free tier
-    region: frankfurt

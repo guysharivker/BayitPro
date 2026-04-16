@@ -55,11 +55,9 @@ This creates all tables. Run once per fresh database.
 1. Go to [render.com](https://render.com) → **New → Web Service**
 2. Connect your GitHub repo
 3. Render will detect `render.yaml` automatically — click **Apply**
-4. This creates:
-   - `bayitpro-backend` web service (Python, free plan)
-   - `bayitpro-db` PostgreSQL database (free plan, 90-day expiry)
+4. This creates one resource: `bayitpro-backend` web service (Python, free plan)
 
-> **Note:** The free Render database is for demos only. For production, use Supabase and remove the `databases:` block from `render.yaml`.
+> Render does **not** create a database. The database is Supabase — set `DATABASE_URL` manually in step 2b.
 
 ### 2b. Set environment variables
 
@@ -68,7 +66,7 @@ In the Render dashboard → **bayitpro-backend** → **Environment**:
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `ENV` | `production` | Auto-set by render.yaml |
-| `DATABASE_URL` | _(auto from Supabase or Render DB)_ | If using Supabase, override the auto-injected value |
+| `DATABASE_URL` | `postgresql://postgres:[PW]@db.[REF].supabase.co:5432/postgres` | Paste the Supabase Postgres URI — **not** the project URL (`https://...supabase.co`) |
 | `JWT_SECRET_KEY` | _(auto-generated)_ | Render generates this — do not change after first deploy |
 | `ALLOWED_ORIGINS` | `https://yourapp.onrender.com` | Add Vercel URL if using Option B |
 | `ANTHROPIC_API_KEY` | `sk-ant-...` | From console.anthropic.com |
@@ -220,7 +218,7 @@ uvicorn app.main:app --reload
 | Risk | Severity | Mitigation |
 |------|----------|-----------|
 | Render free tier sleeps after 15 min inactivity | Medium | Upgrade to Starter ($7/mo) or use UptimeRobot to ping `/health` |
-| Render free DB expires after 90 days | High | Use Supabase free tier instead (no expiry) |
+| Supabase free tier pauses after 1 week of inactivity | Medium | Keep the app active or upgrade to Supabase Pro |
 | Default admin `admin123` password | High | Change via `PATCH /auth/me` immediately after first login |
 | `.env` committed to git | Critical | `.gitignore` now blocks this — **rotate any credentials that were in git history** |
 | WebSocket not available on Vercel | Low | Use Render full-stack (Option A) for demo |

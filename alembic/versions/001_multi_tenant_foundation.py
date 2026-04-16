@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 revision: str = "001_multi_tenant_foundation"
-down_revision: str | None = None
+down_revision: str | None = "000_initial_schema"
 branch_labels: Sequence[str] | None = None
 depends_on: Sequence[str] | None = None
 
@@ -28,6 +28,14 @@ def upgrade() -> None:
     dialect_name = bind.dialect.name
 
     if dialect_name == "postgresql":
+        op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                CREATE TYPE userrole AS ENUM ('USER');
+            END IF;
+        END$$;
+        """)
         op.execute("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'COMPANY_ADMIN'")
 
     op.add_column("maintenance_companies", sa.Column("slug", sa.String(length=255), nullable=True))

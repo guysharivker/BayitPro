@@ -58,7 +58,12 @@
       "Bash(/Users/guysharivker/PyCharmMiscProject/.venv/bin/python -m alembic stamp head)",
       "Bash(/Users/guysharivker/PyCharmMiscProject/.venv/bin/python -c \"from app.main import app; print\\(''✅ App imports OK''\\)\")",
       "Bash(/Users/guysharivker/PyCharmMiscProject/.venv/bin/python -:*)",
-      "Bash(.venv/bin/python -c \":*)"
+      "Bash(.venv/bin/python -c \":*)",
+      "Bash(.venv/bin/alembic heads:*)",
+      "Bash(.venv/bin/alembic history:*)",
+      "Bash(.venv/bin/alembic current:*)",
+      "Bash(DATABASE_URL=\"sqlite:///./test_fresh.db\" .venv/bin/alembic upgrade head)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }
