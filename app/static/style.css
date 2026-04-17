@@ -4111,6 +4111,62 @@ body.has-sidebar #sim-panel {
 
 @media (max-width: 768px) {
 
+  /* ── 0. Grid column blowout fix ───────────────────────────────────
+     grid 1fr resolves to the widest child (≈491px on a 375px screen)
+     because grid items default to min-width:auto. minmax(0,1fr) forces
+     the column to respect the viewport width.  Shell and topbar also
+     need min-width:0 so they don't push the column wider.            */
+  body.has-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100vw;
+  }
+
+  body.has-sidebar .topbar {
+    min-width: 0;
+    max-width: 100vw;
+  }
+
+  /* Shell: no overflow set (avoids creating a scroll container which
+     breaks sticky positioning of .view-tabs). The minmax(0,1fr) grid
+     fix already prevents the column from blowing past 100vw.         */
+  body.has-sidebar .shell {
+    min-width: 0;
+    max-width: 100vw;
+    padding-top: 0;
+  }
+
+  /* ── 0b. View-tabs: fixed under topbar ────────────────────────────
+     position:sticky breaks when html/body has overflow-x:hidden
+     (browser routes scroll through html making sticky ineffective).
+     position:fixed is reliable on mobile; push content down to
+     avoid the fixed bar overlapping the first card.                  */
+  .view-tabs {
+    position: fixed;
+    top: var(--topbar-h);
+    left: 0;
+    right: 0;
+    border-radius: 0;
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+    padding: 4px 8px;
+    margin: 0;
+    width: 100%;
+    z-index: 50;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.97);
+  }
+
+  /* Push shell content down so first card isn't hidden under the fixed tabs */
+  body.has-sidebar .shell {
+    padding-top: 52px;
+  }
+
+  /* Also push area-view content (same tab bar pattern) */
+  #area-view .view-tabs {
+    top: var(--topbar-h);
+  }
+
   /* ── 1. Topbar: stay single row ───────────────────────────────────
      The 720px block sets flex-wrap:wrap + topbar-status:width:100%,
      which pushes the status chips to a second row.  The --topbar-h
