@@ -10,7 +10,7 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""
   >
-  <link rel="stylesheet" href="/static/style.css?v=14">
+  <link rel="stylesheet" href="/static/style.css?v=20">
 </head>
 <body>
   <header class="topbar">
@@ -78,6 +78,36 @@
   </div>
   <div id="alerts-drawer-backdrop" class="alerts-drawer-backdrop hidden" onclick="toggleAlertsDrawer()"></div>
 
+  <!-- Mobile menu sheet -->
+  <div id="mobile-menu-sheet-backdrop" class="mobile-menu-sheet-backdrop hidden" onclick="closeMobileMenuSheet()"></div>
+  <div id="mobile-menu-sheet" class="mobile-menu-sheet hidden" role="dialog" aria-label="תפריט">
+    <div class="mobile-menu-sheet-header">
+      <div>
+        <div class="mobile-menu-sheet-title" id="mobile-menu-user-name">משתמש</div>
+        <div class="mobile-menu-sheet-role" id="mobile-menu-user-role"></div>
+      </div>
+      <button class="modal-close" onclick="closeMobileMenuSheet()" aria-label="סגור">&times;</button>
+    </div>
+    <div class="mobile-menu-sheet-items">
+      <button class="mobile-menu-sheet-item non-worker-only" onclick="closeMobileMenuSheet(); sidebarNav('attendance')">
+        <i data-lucide="check-circle"></i><span>נוכחות</span>
+      </button>
+      <button class="mobile-menu-sheet-item non-worker-only" onclick="closeMobileMenuSheet(); sidebarNav('payroll')">
+        <i data-lucide="wallet"></i><span>שכר</span>
+      </button>
+      <button class="mobile-menu-sheet-item worker-only" onclick="closeMobileMenuSheet(); openMyPayrollReport()">
+        <i data-lucide="wallet"></i><span>השכר שלי</span>
+      </button>
+      <button class="mobile-menu-sheet-item" onclick="closeMobileMenuSheet(); sidebarNav('schedule')">
+        <i data-lucide="calendar-days"></i><span>לוח שיבוצים</span>
+      </button>
+      <div class="mobile-menu-sheet-divider"></div>
+      <button class="mobile-menu-sheet-item is-danger" onclick="logout()">
+        <i data-lucide="log-out"></i><span>יציאה מהמערכת</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Persistent sidebar nav -->
   <aside id="main-sidebar" class="main-sidebar" aria-label="ניווט ראשי">
     <nav class="sidebar-nav" role="navigation">
@@ -105,25 +135,31 @@
     </nav>
     <!-- Bottom nav for mobile -->
     <div class="sidebar-mobile-bottom" id="mobile-bottom-nav">
-      <button class="mobile-nav-item active" id="mnav-dashboard" onclick="sidebarNav('dashboard')">
-        <span class="mobile-nav-icon">🏠</span>
+      <button class="mobile-nav-item active" id="mnav-dashboard" onclick="sidebarNav('dashboard')" aria-label="בית">
+        <span class="mobile-nav-icon"><i data-lucide="home"></i></span>
         <span class="mobile-nav-label">בית</span>
       </button>
-      <button class="mobile-nav-item worker-only" id="mnav-schedule" onclick="sidebarNav('schedule')">
-        <span class="mobile-nav-icon">📅</span>
+      <button class="mobile-nav-item worker-only" id="mnav-schedule" onclick="sidebarNav('schedule')" aria-label="שיבוצים">
+        <span class="mobile-nav-icon"><i data-lucide="calendar-days"></i></span>
         <span class="mobile-nav-label">שיבוצים</span>
       </button>
-      <button class="mobile-nav-item" id="mnav-report" onclick="openReportProblemModal()">
-        <span class="mobile-nav-icon">⚠️</span>
-        <span class="mobile-nav-label">דיווח</span>
-      </button>
-      <button class="mobile-nav-item worker-only" id="mnav-payroll" onclick="openMyPayrollReport()">
-        <span class="mobile-nav-icon">💰</span>
-        <span class="mobile-nav-label">שכר</span>
-      </button>
-      <button class="mobile-nav-item non-worker-only" id="mnav-tickets" onclick="sidebarNav('tickets')">
-        <span class="mobile-nav-icon">📋</span>
+      <button class="mobile-nav-item non-worker-only" id="mnav-tickets" onclick="sidebarNav('tickets')" aria-label="קריאות">
+        <span class="mobile-nav-icon"><i data-lucide="clipboard-list"></i></span>
         <span class="mobile-nav-label">קריאות</span>
+      </button>
+      <button class="mobile-nav-fab" id="mnav-report" onclick="openReportProblemModal()" aria-label="דווח תקלה">
+        <i data-lucide="plus"></i>
+      </button>
+      <button class="mobile-nav-item" id="mnav-alerts" onclick="toggleAlertsDrawer()" aria-label="התראות">
+        <span class="mobile-nav-icon">
+          <i data-lucide="bell"></i>
+          <span id="mnav-alerts-badge" class="mobile-nav-badge hidden">0</span>
+        </span>
+        <span class="mobile-nav-label">התראות</span>
+      </button>
+      <button class="mobile-nav-item" id="mnav-menu" onclick="openMobileMenuSheet()" aria-label="תפריט">
+        <span class="mobile-nav-icon"><i data-lucide="menu"></i></span>
+        <span class="mobile-nav-label">תפריט</span>
       </button>
     </div>
   </aside>
@@ -246,6 +282,7 @@
       </nav>
 
       <section id="area-overview-panel" class="tab-panel">
+        <div id="area-my-day" class="my-day-host hidden"></div>
         <section id="area-urgent-hero" class="urgent-hero"></section>
         <section id="area-stats" class="stats-grid compact"></section>
         <div id="area-map-card" class="side-card hidden overview-map-card">
@@ -594,6 +631,7 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
-  <script src="/static/app.js?v=9"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="/static/app.js?v=13"></script>
 </body>
 </html>

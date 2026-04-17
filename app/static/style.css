@@ -4335,4 +4335,451 @@ body.has-sidebar #sim-panel {
     border-radius: 20px 20px 0 0;
     padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
+
+  /* ── 15. Urgency legend: hide on mobile (cards are already colored) ─ */
+  .urgency-legend {
+    display: none;
+  }
+
+  /* ── 16. Compact urgent hero (mobile) ───────────────────────────── */
+  .urgent-hero {
+    padding: 14px 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+  }
+  .urgent-hero-head.compact {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .urgent-hero-head.compact .urgent-hero-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+  }
+  .urgent-hero-head.compact .urgent-hero-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── 17. Simplified urgent-row on mobile ───────────────────────── */
+  .urgent-row-mobile {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px 12px 10px;
+    margin-bottom: 8px;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    border-right-width: 4px;
+    min-height: 64px;
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.15s ease;
+  }
+  .urgent-row-mobile:active {
+    transform: scale(0.985);
+  }
+  .urgent-row-mobile.is-critical {
+    border-right-color: var(--danger);
+  }
+  .urgent-row-mobile.is-high {
+    border-right-color: var(--warning);
+  }
+  .urgent-row-mobile.is-medium {
+    border-right-color: var(--info);
+  }
+  .urgent-row-mobile .urgent-row-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .urgent-row-mobile .urgent-row-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    margin: 0;
+  }
+  .urgent-row-mobile .urgent-row-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .urgent-row-mobile .urgent-row-sub .sla-breach-inline {
+    color: var(--danger);
+    font-weight: 600;
+  }
+  .urgent-row-mobile .urgent-row-chevron {
+    color: var(--muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* ── 18. Map: unusable on 375px, hide ──────────────────────────── */
+  .map-card,
+  .overview-map-card,
+  #area-map-card { display: none !important; }
+
+  /* ── 19. Stats grid: 2 cols, tighter, smaller label ────────────── */
+  .stats-grid {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stats-grid .stat-card {
+    padding: 12px;
+  }
+
+  /* ── 20. My-day strip (AREA_MANAGER mobile home) ───────────────── */
+  .my-day-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .my-day-cell {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 78px;
+  }
+  .my-day-cell:active { transform: scale(0.97); }
+  .my-day-cell .md-value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+  .my-day-cell .md-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 600;
+    margin-top: 6px;
+    line-height: 1.2;
+  }
+  .my-day-cell.is-danger .md-value { color: var(--danger); }
+  .my-day-cell.is-warning .md-value { color: var(--warning); }
+  .my-day-cell.is-success .md-value { color: var(--success); }
+
+  /* ── 21. Ticket card: compact mobile variant ─────────────────── */
+  .ticket-legend { display: none; }
+  .ticket-card-mobile {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px 12px 12px 16px;
+    margin-bottom: 10px;
+    min-height: 88px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.08s, box-shadow 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ticket-card-mobile:active { transform: scale(0.98); }
+  .ticket-card-mobile .tc-edge {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 4px;
+    background: var(--muted);
+  }
+  .ticket-card-mobile.urgency-CRITICAL .tc-edge { background: var(--danger); }
+  .ticket-card-mobile.urgency-HIGH     .tc-edge { background: var(--warning); }
+  .ticket-card-mobile.urgency-MEDIUM   .tc-edge { background: var(--info, #3b82f6); }
+  .ticket-card-mobile.urgency-LOW      .tc-edge { background: var(--muted); }
+
+  .ticket-card-mobile .tc-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+  }
+  .ticket-card-mobile .tc-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ticket-card-mobile .tc-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ticket-card-mobile .tc-late { color: var(--danger); font-weight: 700; }
+  .ticket-card-mobile .tc-chips {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .ticket-card-mobile .tc-chip {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.4;
+  }
+  .ticket-card-mobile .tc-chip-urgent {
+    background: #fee2e2;
+    color: var(--danger);
+  }
+  .ticket-card-mobile .tc-chip-high {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .ticket-card-mobile .tc-chip-status {
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+  .ticket-card-mobile .tc-chip-status-IN_PROGRESS {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .ticket-card-mobile .tc-chip-status-DONE {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .ticket-card-mobile .tc-chevron {
+    align-self: center;
+    color: var(--muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  /* ── 22. Bottom nav with center FAB ────────────────────────── */
+  .sidebar-mobile-bottom {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 6px 4px calc(env(safe-area-inset-bottom, 0px) + 6px) 4px;
+  }
+  .mobile-nav-item {
+    flex: 1;
+    min-height: 56px;
+    padding: 6px 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.12s;
+  }
+  .mobile-nav-item .mobile-nav-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+  }
+  .mobile-nav-item .mobile-nav-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2;
+  }
+  .mobile-nav-item .mobile-nav-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .mobile-nav-item.active,
+  .mobile-nav-item:active {
+    color: var(--primary, #0f766e);
+  }
+  .mobile-nav-badge {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger, #dc2626);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-nav-fab {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary, #0f766e);
+    color: #fff;
+    border: 4px solid #fff;
+    transform: translateY(-14px);
+    box-shadow: 0 4px 16px rgba(15, 118, 110, 0.35);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s;
+  }
+  .mobile-nav-fab:active { transform: translateY(-14px) scale(0.95); }
+  .mobile-nav-fab svg {
+    width: 26px;
+    height: 26px;
+    stroke-width: 2.5;
+  }
+
+  /* ── 23. Mobile menu bottom sheet ─────────────────────────── */
+  .mobile-menu-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 89;
+    animation: fadeIn 0.15s ease-out;
+  }
+  .mobile-menu-sheet {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 20px);
+    z-index: 90;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.22s ease-out;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .mobile-menu-sheet::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: #e5e7eb;
+    margin: 0 auto 12px;
+  }
+  .mobile-menu-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 4px 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .mobile-menu-sheet-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .mobile-menu-sheet-role { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .mobile-menu-sheet-items {
+    display: flex;
+    flex-direction: column;
+    padding-top: 8px;
+  }
+  .mobile-menu-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: right;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    border-radius: 8px;
+    transition: background 0.1s;
+  }
+  .mobile-menu-sheet-item:active { background: #f3f4f6; transform: scale(0.99); }
+  .mobile-menu-sheet-item svg { width: 20px; height: 20px; color: var(--muted); flex-shrink: 0; }
+  .mobile-menu-sheet-item.is-danger { color: var(--danger); }
+  .mobile-menu-sheet-item.is-danger svg { color: var(--danger); }
+  .mobile-menu-sheet-divider { height: 1px; background: #f1f5f9; margin: 6px 0; }
+
+  /* Keep topbar alerts button visible but hide its label clash — the mobile nav alerts handles it */
+  #alerts-btn { display: none !important; }
+
+  /* ── 24. Tap feedback ─────────────────────────────────────── */
+  .urgent-row,
+  .ticket-card,
+  .ticket-card-mobile,
+  .stat-card,
+  .view-tab,
+  .btn-primary,
+  .btn-ghost,
+  .pill,
+  .modal-close {
+    -webkit-tap-highlight-color: transparent;
+  }
+  .urgent-row:active,
+  .ticket-card:active,
+  .stat-card:active {
+    transform: scale(0.98);
+    transition: transform 0.08s;
+  }
+  .btn-primary:active,
+  .btn-ghost:active {
+    transform: scale(0.97);
+    transition: transform 0.08s;
+  }
+
+  /* ── 25. 44px min tap targets ─────────────────────────────── */
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .view-tab { min-height: 44px; }
+
+  /* ── 26. Empty state for calm hero ────────────────────────── */
+  .urgent-hero.urgent-calm .urgent-hero-head.compact {
+    text-align: center;
+    padding: 16px 4px;
+  }
+  .urgent-hero.urgent-calm .urgent-hero-title {
+    font-size: 1.15rem;
+    color: var(--success, #15803d);
+  }
+  .urgent-hero.urgent-calm .urgent-hero-subtitle {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
 }

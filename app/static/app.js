@@ -48,14 +48,18 @@ const STATUS_LABELS = {
 };
 
 const URGENCY_LABELS = {
-  LOW: "נמוך",
-  MEDIUM: "בינוני",
-  HIGH: "גבוה",
-  CRITICAL: "קריטי",
+  LOW: "רגיל",
+  MEDIUM: "רגיל",
+  HIGH: "חשוב",
+  CRITICAL: "דחוף",
 };
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const URGENCY_PRIORITY = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+function isMobile() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "מנהל ראשי",
@@ -88,6 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyRoleVisibility();
   setupDemoToggle();
   setupUserMenu();
+  renderLucideIcons();
   startRefreshTicker();
   document.body.classList.add("has-sidebar");
   loadDashboard();
@@ -169,10 +174,18 @@ function renderUrgentHero() {
 
   const top3 = openTickets.slice(0, 3);
   const container = document.getElementById("urgent-hero");
+  const mobile = isMobile();
 
   if (top3.length === 0) {
     container.className = "urgent-hero urgent-calm";
-    container.innerHTML = `
+    container.innerHTML = mobile
+      ? `
+      <div class="urgent-hero-head compact">
+        <h1 class="urgent-hero-title">הכול תחת שליטה ✓</h1>
+        <div class="urgent-hero-subtitle">אין כרגע קריאות דורשות טיפול.</div>
+      </div>
+    `
+      : `
       <div class="urgent-hero-head">
         <div>
           <h1 class="urgent-hero-title">הכול תחת שליטה</h1>
@@ -186,6 +199,20 @@ function renderUrgentHero() {
 
   const criticalCount = top3.filter((t) => t.urgency === "CRITICAL" || t.sla_breached).length;
   container.className = "urgent-hero urgent-alert";
+
+  if (mobile) {
+    const headline =
+      criticalCount > 0 ? `${criticalCount} לטיפול דחוף` : `${top3.length} לטיפול`;
+    container.innerHTML = `
+      <div class="urgent-hero-head compact">
+        <h1 class="urgent-hero-title">${headline}</h1>
+      </div>
+      <div class="urgent-list">
+        ${top3.map(renderUrgentRow).join("")}
+      </div>
+    `;
+    return;
+  }
 
   const headline =
     criticalCount > 0
@@ -223,9 +250,30 @@ function renderUrgentRow(ticket) {
 
   const building = ticket.building_text_raw || "ללא בניין";
   const icon = getCategoryIcon(ticket.category);
+  const ariaLabel = `קריאה: ${ticket.description} - ${building} - ${areaName}${ticket.sla_breached ? " - באיחור" : ""}`;
+
+  if (isMobile()) {
+    const lateFlag = ticket.sla_breached ? ` · <span class="sla-breach-inline">באיחור</span>` : "";
+    return `
+      <article
+        class="urgent-row urgent-row-mobile ${urgencyClass}"
+        role="button"
+        tabindex="0"
+        aria-label="${escapeHtml(ariaLabel)}"
+        onclick="openTicketDetail(${ticket.id})"
+        onkeydown="handleCardKeyDown(event, () => openTicketDetail(${ticket.id}))"
+      >
+        <div class="urgent-row-body">
+          <div class="urgent-row-title">${icon} <span>${escapeHtml(ticket.description)}</span></div>
+          <div class="urgent-row-sub">${escapeHtml(building)} · ${getTimeAgo(ticket.created_at)}${lateFlag}</div>
+        </div>
+        <div class="urgent-row-chevron" aria-hidden="true">‹</div>
+      </article>
+    `;
+  }
+
   const urgencyLabel = getUrgencyLabel(ticket.urgency || "MEDIUM");
   const metadataId = `urgent-meta-${ticket.id}`;
-  const ariaLabel = `קריאה: ${ticket.description} - ${building} - ${areaName}${ticket.sla_breached ? " - חריגת SLA" : ""}`;
 
   return `
     <article
@@ -244,7 +292,7 @@ function renderUrgentRow(ticket) {
           <li>${escapeHtml(building)}</li>
           <li>${escapeHtml(areaName)}</li>
           <li>נפתח ${getTimeAgo(ticket.created_at)}</li>
-          ${ticket.sla_breached ? '<li class="sla-breach-inline">חריגת SLA</li>' : ""}
+          ${ticket.sla_breached ? '<li class="sla-breach-inline">באיחור</li>' : ""}
         </ul>
       </div>
       <div class="urgent-row-cta">פרטים ←</div>
@@ -274,7 +322,7 @@ function renderCompanyStats() {
     },
     {
       value: dashboardData.sla_breached_count,
-      label: "חריגות SLA",
+      label: "מאחרות",
       className: "stat-sla",
       icon: "⚠️",
     },
@@ -302,11 +350,11 @@ function renderAreaCards() {
       const areaMeta = areasData.find((area) => area.id === summary.area_id);
       const buildingCount = areaMeta ? areaMeta.building_count : 0;
       const metaId = `area-card-meta-${summary.area_id}`;
-      const ariaLabel = `אזור ${summary.area_name}. ${buildingCount} בניינים. ${summary.open_tickets} קריאות פתוחות. ${summary.sla_breached_count > 0 ? `${summary.sla_breached_count} חריגות SLA.` : "ללא חריגות SLA."}`;
+      const ariaLabel = `אזור ${summary.area_name}. ${buildingCount} בניינים. ${summary.open_tickets} קריאות פתוחות. ${summary.sla_breached_count > 0 ? `${summary.sla_breached_count} מאחרות.` : "ללא מאחרות."}`;
 
       let primaryBadge;
       if (summary.sla_breached_count > 0) {
-        primaryBadge = `<span class="area-primary-badge is-danger">🚨 ${summary.sla_breached_count} חריגות SLA</span>`;
+        primaryBadge = `<span class="area-primary-badge is-danger">🚨 ${summary.sla_breached_count} מאחרות</span>`;
       } else if (summary.open_tickets > 0) {
         primaryBadge = `<span class="area-primary-badge is-warning">${summary.open_tickets} פתוחות</span>`;
       } else {
@@ -379,7 +427,7 @@ function renderCompanyAlerts() {
             class="alert-card ${area.sla_breached_count > 0 ? "is-danger" : "is-warning"}"
             role="button"
             tabindex="0"
-            aria-label="${escapeHtml(`התראה לאזור ${area.area_name}. ${area.sla_breached_count > 0 ? `${area.sla_breached_count} חריגות SLA ו-${area.open_tickets} קריאות פתוחות` : `${area.open_tickets} קריאות פתוחות דורשות מעקב`}`)}"
+            aria-label="${escapeHtml(`התראה לאזור ${area.area_name}. ${area.sla_breached_count > 0 ? `${area.sla_breached_count} מאחרות ו-${area.open_tickets} קריאות פתוחות` : `${area.open_tickets} קריאות פתוחות דורשות מעקב`}`)}"
             onclick="showArea(${area.area_id})"
             onkeydown="handleCardKeyDown(event, () => showArea(${area.area_id}))"
           >
@@ -387,7 +435,7 @@ function renderCompanyAlerts() {
             <div class="alert-body">
               ${
                 area.sla_breached_count > 0
-                  ? `${area.sla_breached_count} חריגות SLA ו-${area.open_tickets} קריאות פתוחות`
+                  ? `${area.sla_breached_count} מאחרות ו-${area.open_tickets} קריאות פתוחות`
                   : `${area.open_tickets} קריאות פתוחות דורשות מעקב`
               }
             </div>
@@ -547,29 +595,83 @@ async function showArea(areaId, options = {}) {
   updateRefreshTime();
 }
 
+function renderMyDayStrip(summary, openTickets, workers) {
+  const urgentCount = openTickets.filter(
+    (t) => t.urgency === "CRITICAL" || t.sla_breached,
+  ).length;
+  const lateCount = Number(summary.sla_breached_count || 0);
+  const todayIdx = new Date().getDay();
+  const workingToday = workers.filter((w) => {
+    const sched = w.schedule || w.working_days || [];
+    if (Array.isArray(sched) && sched.length) {
+      return sched.includes(todayIdx) || sched.includes(DAY_NAMES[todayIdx]);
+    }
+    return w.is_active !== false;
+  }).length;
+
+  return `
+    <div class="my-day-strip" role="group" aria-label="המצב שלי היום">
+      <button type="button" class="my-day-cell is-danger" onclick="showAreaPanel('tickets', true)">
+        <div class="md-value">${urgentCount}</div>
+        <div class="md-label">דחופות</div>
+      </button>
+      <button type="button" class="my-day-cell is-success" onclick="showAreaPanel('workers', true)">
+        <div class="md-value">${workingToday}</div>
+        <div class="md-label">עובדים היום</div>
+      </button>
+      <button type="button" class="my-day-cell is-warning" onclick="showAreaPanel('tickets', true)">
+        <div class="md-value">${lateCount}</div>
+        <div class="md-label">מאחרות</div>
+      </button>
+    </div>
+  `;
+}
+
 function renderArea(summary, tickets, buildings, workers, areaMeta) {
   const openTickets = [...tickets].filter((t) => t.status !== "DONE").sort(compareTickets);
   const criticalCount = openTickets.filter((t) => t.urgency === "CRITICAL" || t.sla_breached).length;
   renderAreaBreadcrumb(summary.area_name);
 
+  /* --- My Day strip (AREA_MANAGER on mobile only) --- */
+  const myDayHost = document.getElementById("area-my-day");
+  if (myDayHost) {
+    if (currentUser && currentUser.role === "AREA_MANAGER" && isMobile()) {
+      myDayHost.innerHTML = renderMyDayStrip(summary, openTickets, workers);
+      myDayHost.classList.remove("hidden");
+    } else {
+      myDayHost.innerHTML = "";
+      myDayHost.classList.add("hidden");
+    }
+  }
+
   /* --- Hero: top urgent in this area --- */
   const hero = document.getElementById("area-urgent-hero");
   const top3 = openTickets.slice(0, 3);
+  const mobile = isMobile();
 
   if (top3.length === 0) {
     hero.className = "urgent-hero urgent-calm";
-    hero.innerHTML = `
-      <div class="urgent-hero-head">
-        <div>
-          <h1 class="urgent-hero-title">${escapeHtml(summary.area_name)} – הכול תחת שליטה</h1>
-          <div class="urgent-hero-subtitle">
-            ${areaMeta.manager ? `מנהל אזור: ${escapeHtml(areaMeta.manager.name)} · ` : ""}
-            ${buildings.length} בניינים באזור
-          </div>
+    if (mobile) {
+      hero.innerHTML = `
+        <div class="urgent-hero-head compact">
+          <h1 class="urgent-hero-title">הכול תחת שליטה ✓</h1>
+          <div class="urgent-hero-subtitle">${escapeHtml(summary.area_name)} · ${buildings.length} בניינים</div>
         </div>
-        <span class="urgent-hero-badge is-ok">✓ תקין</span>
-      </div>
-    `;
+      `;
+    } else {
+      hero.innerHTML = `
+        <div class="urgent-hero-head">
+          <div>
+            <h1 class="urgent-hero-title">${escapeHtml(summary.area_name)} – הכול תחת שליטה</h1>
+            <div class="urgent-hero-subtitle">
+              ${areaMeta.manager ? `מנהל אזור: ${escapeHtml(areaMeta.manager.name)} · ` : ""}
+              ${buildings.length} בניינים באזור
+            </div>
+          </div>
+          <span class="urgent-hero-badge is-ok">✓ תקין</span>
+        </div>
+      `;
+    }
   } else {
     hero.className = criticalCount > 0 ? "urgent-hero urgent-alert" : "urgent-hero";
     const headline =
@@ -577,7 +679,12 @@ function renderArea(summary, tickets, buildings, workers, areaMeta) {
         ? `${criticalCount} קריאות דורשות טיפול מיידי ב${summary.area_name}`
         : `${summary.area_name} – ${top3.length} קריאות לטיפול`;
 
-    hero.innerHTML = `
+    const mobileHead = `
+      <div class="urgent-hero-head compact">
+        <h1 class="urgent-hero-title">${criticalCount > 0 ? `${criticalCount} לטיפול דחוף` : `${top3.length} לטיפול`}</h1>
+      </div>
+    `;
+    const desktopHead = `
       <div class="urgent-hero-head">
         <div>
           <h1 class="urgent-hero-title">${headline}</h1>
@@ -593,39 +700,64 @@ function renderArea(summary, tickets, buildings, workers, areaMeta) {
         }
       </div>
       <div class="urgency-legend" aria-label="מקרא דחיפות">🔴 קריטי · 🟠 גבוה · 🔵 בינוני</div>
-      <div class="urgent-list">
-        ${top3
-          .map((ticket) => {
-            const building = ticket.building_text_raw || "ללא בניין";
-            const urgencyClass = getUrgencyClass(ticket.urgency || "MEDIUM");
-            const icon = getCategoryIcon(ticket.category);
-            const urgencyLabel = getUrgencyLabel(ticket.urgency || "MEDIUM");
-            const metadataId = `area-urgent-meta-${ticket.id}`;
-            return `
-              <article
-                class="urgent-row ${urgencyClass}"
-                role="button"
-                tabindex="0"
-                aria-label="${escapeHtml(`קריאה באזור ${summary.area_name}: ${ticket.description} - ${building}${ticket.sla_breached ? " - חריגת SLA" : ""}`)}"
-                aria-describedby="${metadataId}"
-                onclick="focusTicket(${ticket.id})"
-                onkeydown="handleCardKeyDown(event, () => focusTicket(${ticket.id}))"
-              >
-                <div class="urgent-row-main">
-                  <span class="urgency-label ${urgencyClass}">${urgencyLabel}</span>
-                  <div class="urgent-row-title">${icon}<span>${escapeHtml(ticket.description)}</span></div>
-                  <ul id="${metadataId}" class="urgent-row-meta">
-                    <li>${escapeHtml(building)}</li>
-                    <li>נפתח ${getTimeAgo(ticket.created_at)}</li>
-                    ${ticket.sla_breached ? '<li class="sla-breach-inline">חריגת SLA</li>' : ""}
-                  </ul>
-                </div>
-                <div class="urgent-row-cta">גלול לקריאה ←</div>
-              </article>
-            `;
-          })
-          .join("")}
-      </div>
+    `;
+
+    const rowsHtml = top3
+      .map((ticket) => {
+        const building = ticket.building_text_raw || "ללא בניין";
+        const urgencyClass = getUrgencyClass(ticket.urgency || "MEDIUM");
+        const icon = getCategoryIcon(ticket.category);
+        const urgencyLabel = getUrgencyLabel(ticket.urgency || "MEDIUM");
+        const metadataId = `area-urgent-meta-${ticket.id}`;
+
+        if (mobile) {
+          const lateFlag = ticket.sla_breached ? ` · <span class="sla-breach-inline">באיחור</span>` : "";
+          return `
+            <article
+              class="urgent-row urgent-row-mobile ${urgencyClass}"
+              role="button"
+              tabindex="0"
+              aria-label="${escapeHtml(`${ticket.description} - ${building}${ticket.sla_breached ? " - באיחור" : ""}`)}"
+              onclick="focusTicket(${ticket.id})"
+              onkeydown="handleCardKeyDown(event, () => focusTicket(${ticket.id}))"
+            >
+              <div class="urgent-row-body">
+                <div class="urgent-row-title">${icon}<span>${escapeHtml(ticket.description)}</span></div>
+                <div class="urgent-row-sub">${escapeHtml(building)} · ${getTimeAgo(ticket.created_at)}${lateFlag}</div>
+              </div>
+              <div class="urgent-row-chevron" aria-hidden="true">‹</div>
+            </article>
+          `;
+        }
+
+        return `
+          <article
+            class="urgent-row ${urgencyClass}"
+            role="button"
+            tabindex="0"
+            aria-label="${escapeHtml(`קריאה באזור ${summary.area_name}: ${ticket.description} - ${building}${ticket.sla_breached ? " - באיחור" : ""}`)}"
+            aria-describedby="${metadataId}"
+            onclick="focusTicket(${ticket.id})"
+            onkeydown="handleCardKeyDown(event, () => focusTicket(${ticket.id}))"
+          >
+            <div class="urgent-row-main">
+              <span class="urgency-label ${urgencyClass}">${urgencyLabel}</span>
+              <div class="urgent-row-title">${icon}<span>${escapeHtml(ticket.description)}</span></div>
+              <ul id="${metadataId}" class="urgent-row-meta">
+                <li>${escapeHtml(building)}</li>
+                <li>נפתח ${getTimeAgo(ticket.created_at)}</li>
+                ${ticket.sla_breached ? '<li class="sla-breach-inline">באיחור</li>' : ""}
+              </ul>
+            </div>
+            <div class="urgent-row-cta">גלול לקריאה ←</div>
+          </article>
+        `;
+      })
+      .join("");
+
+    hero.innerHTML = `
+      ${mobile ? mobileHead : desktopHead}
+      <div class="urgent-list">${rowsHtml}</div>
     `;
   }
 
@@ -634,7 +766,7 @@ function renderArea(summary, tickets, buildings, workers, areaMeta) {
     statCard({ value: summary.open_tickets, label: "פתוחות", className: "stat-open", icon: "📂" }),
     statCard({ value: summary.in_progress_tickets, label: "בטיפול", className: "stat-progress", icon: "🔄" }),
     statCard({ value: summary.done_tickets, label: "הושלמו", className: "stat-done", icon: "✓" }),
-    statCard({ value: summary.sla_breached_count, label: "חריגות SLA", className: "stat-sla", icon: "⚠️" }),
+    statCard({ value: summary.sla_breached_count, label: "מאחרות", className: "stat-sla", icon: "⚠️" }),
   ].join("");
 
   /* --- Ticket list --- */
@@ -704,6 +836,39 @@ function renderTicket(ticket) {
   const categoryIcon = getCategoryIcon(ticket.category);
   const urgency = ticket.urgency || "MEDIUM";
 
+  if (isMobile()) {
+    const lateFlag = ticket.sla_breached ? ` · <span class="tc-late">באיחור</span>` : "";
+    const sub = `${escapeHtml(building || "ללא בניין")} · ${getTimeAgo(ticket.created_at)}${lateFlag}`;
+    const chips = [];
+    if (urgency === "CRITICAL") {
+      chips.push(`<span class="tc-chip tc-chip-urgent">דחוף</span>`);
+    } else if (urgency === "HIGH") {
+      chips.push(`<span class="tc-chip tc-chip-high">חשוב</span>`);
+    }
+    if (ticket.status && ticket.status !== "OPEN") {
+      chips.push(`<span class="tc-chip tc-chip-status tc-chip-status-${ticket.status}">${STATUS_LABELS[ticket.status] || ticket.status}</span>`);
+    }
+    return `
+      <article
+        id="ticket-${ticket.id}"
+        class="ticket-card-mobile urgency-${urgency}"
+        tabindex="0"
+        role="button"
+        aria-label="${escapeHtml(`${ticket.description} - ${building}`)}"
+        onclick="focusTicket(${ticket.id})"
+        onkeydown="handleCardKeyDown(event, () => focusTicket(${ticket.id}))"
+      >
+        <div class="tc-edge" aria-hidden="true"></div>
+        <div class="tc-body">
+          <div class="tc-title">${categoryIcon} <span>${escapeHtml(ticket.description)}</span></div>
+          <div class="tc-sub">${sub}</div>
+          ${chips.length ? `<div class="tc-chips">${chips.join("")}</div>` : ""}
+        </div>
+        <div class="tc-chevron" aria-hidden="true">‹</div>
+      </article>
+    `;
+  }
+
   return `
     <article id="ticket-${ticket.id}" class="ticket-card urgency-${urgency}" tabindex="-1">
       <div class="ticket-pills">
@@ -716,7 +881,7 @@ function renderTicket(ticket) {
       <div class="ticket-meta">
         <span class="ticket-meta-item">נפתח ${getTimeAgo(ticket.created_at)}</span>
         ${ticket.assigned_supplier ? `<span class="ticket-meta-item">ספק: ${escapeHtml(ticket.assigned_supplier.name)}</span>` : ""}
-        ${ticket.sla_breached ? `<span class="ticket-meta-item sla-breach">⚠️ חריגת SLA</span>` : ""}
+        ${ticket.sla_breached ? `<span class="ticket-meta-item sla-breach">⚠️ באיחור</span>` : ""}
         <span class="ticket-id">${ticket.public_id || ""}</span>
       </div>
     </article>
@@ -2790,11 +2955,43 @@ document.addEventListener("click", e => {
 let _alertsOpen = false;
 
 function updateAlertsBadge() {
-  const badge = document.getElementById("alerts-badge");
-  if (!badge) return;
   const count = dashboardData?.areas?.reduce((s, a) => s + a.sla_breached_count, 0) || 0;
-  badge.textContent = count;
-  badge.classList.toggle("hidden", count === 0);
+  const badge = document.getElementById("alerts-badge");
+  if (badge) {
+    badge.textContent = count;
+    badge.classList.toggle("hidden", count === 0);
+  }
+  const mobileBadge = document.getElementById("mnav-alerts-badge");
+  if (mobileBadge) {
+    mobileBadge.textContent = count > 99 ? "99+" : count;
+    mobileBadge.classList.toggle("hidden", count === 0);
+  }
+}
+
+function openMobileMenuSheet() {
+  const sheet = document.getElementById("mobile-menu-sheet");
+  const backdrop = document.getElementById("mobile-menu-sheet-backdrop");
+  if (!sheet || !backdrop) return;
+  const nameEl = document.getElementById("mobile-menu-user-name");
+  const roleEl = document.getElementById("mobile-menu-user-role");
+  if (nameEl && currentUser) nameEl.textContent = currentUser.full_name || "";
+  if (roleEl && currentUser) roleEl.textContent = ROLE_LABELS[currentUser.role] || currentUser.role || "";
+  sheet.classList.remove("hidden");
+  backdrop.classList.remove("hidden");
+  if (window.lucide && typeof lucide.createIcons === "function") {
+    lucide.createIcons({ attrs: { "stroke-width": 2 } });
+  }
+}
+
+function closeMobileMenuSheet() {
+  document.getElementById("mobile-menu-sheet")?.classList.add("hidden");
+  document.getElementById("mobile-menu-sheet-backdrop")?.classList.add("hidden");
+}
+
+function renderLucideIcons() {
+  if (window.lucide && typeof lucide.createIcons === "function") {
+    try { lucide.createIcons(); } catch (e) { /* noop */ }
+  }
 }
 
 function toggleAlertsDrawer() {
@@ -2833,7 +3030,7 @@ function renderAlertsDrawer() {
     ...slaBreaches.map(t => ({
       severity: "critical",
       icon: "🚨",
-      title: `חריגת SLA – ${t.building_text_raw || "ללא בניין"}`,
+      title: `באיחור – ${t.building_text_raw || "ללא בניין"}`,
       body: escapeHtml(t.description),
       sub: t.area_name,
       areaId: t.area_id,
@@ -3441,7 +3638,7 @@ function renderTicketDetail(ticket) {
   statusRow.innerHTML = `
     <span class="${urgencyClass}">${URGENCY_LABELS[ticket.urgency] || ticket.urgency || ""}</span>
     <span class="sched-badge ${ticket.status === "DONE" ? "done" : ticket.status === "IN_PROGRESS" ? "open" : "open"}">${statusLabel}</span>
-    ${ticket.sla_breached ? '<span class="sla-breach-inline">חריגת SLA</span>' : ""}
+    ${ticket.sla_breached ? '<span class="sla-breach-inline">באיחור</span>' : ""}
   `;
 
   const areaName = areasData.find(a => a.id === ticket.area_id)?.name || "";
@@ -3502,7 +3699,7 @@ function renderTicketDetail(ticket) {
       </div>
       ${ticket.sla_due_at ? `
       <div class="td-meta-item">
-        <div class="td-meta-key">SLA עד</div>
+        <div class="td-meta-key">יעד טיפול</div>
         <div class="td-meta-val">${new Date(ticket.sla_due_at).toLocaleString("he-IL")}</div>
       </div>` : ""}
       <div class="td-meta-item">
