@@ -10,7 +10,7 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin=""
   >
-  <link rel="stylesheet" href="/static/style.css?v=22">
+  <link rel="stylesheet" href="/static/style.css?v=23">
 </head>
 <body>
   <header class="topbar">
@@ -626,12 +626,42 @@
     </div>
   </div>
 
+  <!-- WhatsApp Simulator modal (demo / testing) -->
+  <div id="wa-sim-modal" class="modal-overlay hidden" onclick="closeWaSimModal(event)">
+    <div class="modal-card wa-sim-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeWaSimModal()" aria-label="סגור">&times;</button>
+      <div class="wa-sim-header">
+        <span class="wa-sim-icon">📱</span>
+        <div>
+          <h3 class="wa-sim-title">סימולטור WhatsApp</h3>
+          <p class="wa-sim-sub">שלח הודעה כאילו הגיעה מדייר דרך WhatsApp</p>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="wa-sim-phone">מספר טלפון (דייר)</label>
+        <input type="tel" id="wa-sim-phone" class="schedule-date-input" value="+972500000001" dir="ltr">
+      </div>
+      <div class="form-row">
+        <label for="wa-sim-text">הודעת WhatsApp</label>
+        <textarea id="wa-sim-text" class="wa-sim-textarea" rows="4" placeholder="לדוגמה: רוטשילד 11 תל אביב - חדר מדרגות לא נקי"></textarea>
+      </div>
+      <div id="wa-sim-error" class="swap-error hidden"></div>
+      <div id="wa-sim-result" class="wa-sim-result hidden"></div>
+      <button class="btn-primary" id="wa-sim-submit" onclick="submitWaSim()">שלח הודעה</button>
+    </div>
+  </div>
+
+  <!-- Floating WhatsApp simulator trigger (non-worker only) -->
+  <button id="wa-sim-fab" class="wa-sim-fab non-worker-only superadmin-only" onclick="openWaSimModal()" title="סימולטור WhatsApp" aria-label="פתח סימולטור WhatsApp">
+    <span>📱</span>
+  </button>
+
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script src="/static/app.js?v=13"></script>
+  <script src="/static/app.js?v=14"></script>
 </body>
 </html>

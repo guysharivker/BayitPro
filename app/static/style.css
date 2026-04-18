@@ -3824,6 +3824,91 @@ body.has-sidebar #sim-panel {
   display: none;
 }
 
+/* ── WhatsApp Simulator ──────────────────────────────────── */
+.wa-sim-fab {
+  position: fixed;
+  bottom: 28px;
+  left: 28px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(37, 211, 102, 0.4);
+  z-index: 200;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.wa-sim-fab:hover { transform: scale(1.08); }
+.wa-sim-fab:active { transform: scale(0.95); }
+
+.wa-sim-card {
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.wa-sim-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wa-sim-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+.wa-sim-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+.wa-sim-sub {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 3px 0 0;
+}
+.wa-sim-textarea {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--bg);
+  resize: vertical;
+  direction: rtl;
+  box-sizing: border-box;
+}
+.wa-sim-textarea:focus { outline: none; border-color: var(--primary); }
+.wa-sim-result { animation: fadeIn 0.2s; }
+.wa-sim-success {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #dcfce7;
+  border-radius: 10px;
+  color: #166534;
+  font-size: 0.92rem;
+}
+.wa-sim-success strong { font-weight: 700; }
+.wa-sim-success span {
+  background: #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 /* ===================== TICKET DETAIL SLIDE-OVER ===================== */
 
 .ticket-detail-overlay {

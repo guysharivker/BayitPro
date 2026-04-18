@@ -2988,6 +2988,76 @@ function closeMobileMenuSheet() {
   document.getElementById("mobile-menu-sheet-backdrop")?.classList.add("hidden");
 }
 
+/* ── WhatsApp Simulator ──────────────────────────────────────── */
+
+function openWaSimModal() {
+  document.getElementById("wa-sim-text").value = "";
+  document.getElementById("wa-sim-error").classList.add("hidden");
+  document.getElementById("wa-sim-result").classList.add("hidden");
+  document.getElementById("wa-sim-submit").disabled = false;
+  document.getElementById("wa-sim-submit").textContent = "שלח הודעה";
+  document.getElementById("wa-sim-modal").classList.remove("hidden");
+}
+
+function closeWaSimModal(e) {
+  if (e && e.target !== document.getElementById("wa-sim-modal")) return;
+  document.getElementById("wa-sim-modal").classList.add("hidden");
+}
+
+async function submitWaSim() {
+  const text = document.getElementById("wa-sim-text").value.trim();
+  const phone = document.getElementById("wa-sim-phone").value.trim() || "+972500000001";
+  const errorEl = document.getElementById("wa-sim-error");
+  const resultEl = document.getElementById("wa-sim-result");
+  const btn = document.getElementById("wa-sim-submit");
+
+  if (!text) {
+    errorEl.textContent = "יש להזין טקסט הודעה";
+    errorEl.classList.remove("hidden");
+    return;
+  }
+  errorEl.classList.add("hidden");
+  resultEl.classList.add("hidden");
+  btn.disabled = true;
+  btn.textContent = "שולח...";
+
+  try {
+    const res = await api("/webhook/simulate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, phone_number: phone }),
+    });
+
+    const action = res.action_taken === "created_ticket" ? "נפתחה קריאה חדשה" : "קריאה קיימת עודכנה";
+    const ticketId = res.public_id || res.ticket_id || "";
+    const category = res.category || "";
+    const urgency = res.urgency || "";
+
+    resultEl.innerHTML = `
+      <div class="wa-sim-success">
+        <strong>✓ ${action}</strong>
+        ${ticketId ? `<span>${ticketId}</span>` : ""}
+        ${category ? `<span>${CATEGORY_LABELS[category] || category}</span>` : ""}
+        ${urgency ? `<span>${URGENCY_LABELS[urgency] || urgency}</span>` : ""}
+      </div>
+    `;
+    resultEl.classList.remove("hidden");
+    btn.textContent = "שלח שוב";
+    btn.disabled = false;
+
+    // Refresh dashboard data
+    setTimeout(() => {
+      if (currentAreaId) loadAreaDetails(currentAreaId);
+      else loadDashboard();
+    }, 600);
+  } catch (err) {
+    errorEl.textContent = "שגיאה: " + (err.message || "לא ידוע");
+    errorEl.classList.remove("hidden");
+    btn.disabled = false;
+    btn.textContent = "שלח הודעה";
+  }
+}
+
 function renderLucideIcons() {
   if (window.lucide && typeof lucide.createIcons === "function") {
     try { lucide.createIcons(); } catch (e) { /* noop */ }

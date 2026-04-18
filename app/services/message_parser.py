@@ -4,10 +4,23 @@ from app.models import TicketCategory, TicketStatus
 
 
 CATEGORY_KEYWORDS: dict[TicketCategory, list[str]] = {
-    TicketCategory.CLEANING: ["cleaning", "ניקיון", "לכלוך", "lobby dirty", "dirty lobby"],
-    TicketCategory.ELECTRIC: ["electric", "חשמל", "light", "תאורה"],
-    TicketCategory.PLUMBING: ["plumbing", "אינסטלציה", "מים", "leak", "נזילה"],
-    TicketCategory.ELEVATOR: ["elevator", "מעלית"],
+    TicketCategory.CLEANING: [
+        "cleaning", "ניקיון", "ניקוי", "נקי", "נקיון", "לכלוך", "מלוכלך",
+        "אשפה", "ריח", "lobby dirty", "dirty lobby", "שטיפה", "לנקות",
+        "dirty", "garbage", "trash", "smell",
+    ],
+    TicketCategory.ELECTRIC: [
+        "electric", "חשמל", "חשמלי", "light", "תאורה", "אור", "נורה",
+        "חשוך", "חשכה", "שקע", "חיווט", "מנורה", "electricity",
+    ],
+    TicketCategory.PLUMBING: [
+        "plumbing", "אינסטלציה", "מים", "נזילה", "נזיל", "מזגן", "צינור",
+        "ברז", "סתימה", "הצפה", "ביוב", "שפכים", "leak", "pipe", "water",
+        "flood", "blocked", "drain",
+    ],
+    TicketCategory.ELEVATOR: [
+        "elevator", "מעלית", "לפט", "תקוע", "תקועה", "lift",
+    ],
 }
 
 
@@ -42,6 +55,8 @@ def extract_building_text(text: str) -> str | None:
         r"בניין\s+([^,\.\n]+)",
         r"building\s+([^,\.\n]+)",
         r"address\s+([^,\.\n]+)",
+        # Israeli street address: street name + number (Hebrew or Latin)
+        r"((?:רחוב\s+)?[א-ת\-\s]+\s+\d{1,4}(?:\s+(?:תל\s*אביב|ירושלים|חיפה|רמת\s*גן|גבעתיים|בני\s*ברק|פתח\s*תקוה|ראשון\s*לציון|הרצליה|כפר\s*סבא|נתניה|אשדוד|אשקלון|באר\s*שבע))?)",
     ]
 
     for pattern in patterns:
@@ -50,19 +65,14 @@ def extract_building_text(text: str) -> str | None:
             extracted = match.group(1).strip()
             return extracted if extracted else None
 
-    fallback = re.search(r"([A-Za-zא-ת\-\s]+\s\d{1,4})", stripped)
-    if fallback:
-        extracted = fallback.group(1).strip()
-        return extracted if extracted else None
-
     return None
 
 
 def extract_supplier_status(text: str) -> TicketStatus | None:
     normalized = _normalize(text)
 
-    done_keywords = ["בוצע", "done"]
-    in_progress_keywords = ["בטיפול", "in progress"]
+    done_keywords = ["בוצע", "הושלם", "טיפלתי", "סיימתי", "done", "completed", "finished"]
+    in_progress_keywords = ["בטיפול", "מטפל", "מטפלת", "in progress", "working on"]
 
     if any(keyword in normalized for keyword in done_keywords):
         return TicketStatus.DONE

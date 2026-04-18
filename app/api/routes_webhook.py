@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Form, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -48,6 +48,28 @@ async def twilio_webhook(
     result = await process_inbound_whatsapp_message(db, payload)
     await broadcast_ticket_event(result["action_taken"], result)
     return Response(content="<Response></Response>", media_type="application/xml")
+
+
+class SimulatePayload(WebhookPayload):
+    pass
+
+
+@router.post("/webhook/simulate", response_model=WebhookResponse)
+async def simulate_whatsapp(
+    text: str = Body(..., embed=True),
+    phone_number: str = Body(default="+972500000001", embed=True),
+    db: Session = Depends(get_db),
+) -> WebhookResponse:
+    """Simulate an inbound WhatsApp message for testing. Requires JWT auth in production."""
+    payload = WebhookPayload(
+        phone_number=phone_number,
+        text=text,
+        timestamp=datetime.now(UTC).replace(tzinfo=None),
+        receiving_number=None,
+    )
+    result = await process_inbound_whatsapp_message(db, payload)
+    await broadcast_ticket_event(result["action_taken"], result)
+    return WebhookResponse(**result)
 
 
 @router.post("/seed", response_model=SeedResponse)
