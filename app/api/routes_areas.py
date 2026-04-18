@@ -149,6 +149,27 @@ def get_area(
     return _area_to_schema(area, db)
 
 
+@router.patch("/areas/{area_id}/whatsapp", response_model=AreaOut)
+def update_area_whatsapp(
+    area_id: int,
+    whatsapp_number: str,
+    db: Session = Depends(get_db),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> AreaOut:
+    """Update the WhatsApp number for an area (superadmin / company admin only)."""
+    if ctx.user.role not in (UserRole.SUPER_ADMIN, UserRole.COMPANY_ADMIN):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    area = _check_area_access(area_id, ctx, db)
+    # Normalize: strip whatsapp: prefix, keep +digits
+    cleaned = whatsapp_number.strip()
+    if cleaned.startswith("whatsapp:"):
+        cleaned = cleaned.split("whatsapp:", maxsplit=1)[1]
+    area.whatsapp_number = cleaned
+    db.commit()
+    db.refresh(area)
+    return _area_to_schema(area, db)
+
+
 @router.get("/areas/{area_id}/buildings", response_model=list[BuildingOut])
 def list_area_buildings(
     area_id: int,

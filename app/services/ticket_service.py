@@ -57,12 +57,15 @@ def _normalize_address(address: str) -> str:
 
 
 def _resolve_area(db: Session, receiving_number: str | None) -> Area | None:
-    if not receiving_number:
-        return None
-    cleaned = receiving_number.strip()
-    if cleaned.startswith("whatsapp:"):
-        cleaned = cleaned.split("whatsapp:", maxsplit=1)[1]
-    return db.query(Area).filter(Area.whatsapp_number == cleaned).first()
+    if receiving_number:
+        cleaned = receiving_number.strip()
+        if cleaned.startswith("whatsapp:"):
+            cleaned = cleaned.split("whatsapp:", maxsplit=1)[1]
+        match = db.query(Area).filter(Area.whatsapp_number == cleaned).first()
+        if match:
+            return match
+    # Fallback: return first area so sandbox messages are always attributed
+    return db.query(Area).order_by(Area.id.asc()).first()
 
 
 def _get_area_buildings(db: Session, area: Area | None) -> list[Building]:
@@ -338,15 +341,16 @@ async def process_inbound_whatsapp_message(db: Session, payload: WebhookPayload)
 
     return {
         "ticket_public_id": ticket.public_id,
+        "public_id": ticket.public_id,         # alias for WebSocket client
         "ticket_id": ticket.id,
         "detected_role": sender_role,
         "detected_building": classification.building_reference,
-        "category": ticket.category,
+        "category": ticket.category.value if hasattr(ticket.category, "value") else ticket.category,
         "urgency": ticket.urgency,
         "area_id": area.id if area else None,
         "area_name": area.name if area else None,
         "assigned_supplier": ticket.assigned_supplier.name if ticket.assigned_supplier else None,
-        "status": ticket.status,
+        "status": ticket.status.value if hasattr(ticket.status, "value") else ticket.status,
         "sla_due_at": ticket.sla_due_at,
         "action_taken": action_taken,
     }
