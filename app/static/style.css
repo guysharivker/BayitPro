@@ -39,7 +39,7 @@ body {
   padding: 0;
   min-height: 100%;
   background-color: #eef3f7;
-  overflow-x: hidden;
+  overflow-x: clip; /* clip prevents horizontal scroll without creating a scroll-container, so position:sticky still works */
 }
 
 body {
@@ -3999,11 +3999,10 @@ body.has-sidebar #sim-panel {
 
   body.has-sidebar {
     grid-template-columns: 1fr;
-    grid-template-rows: var(--topbar-h) 1fr auto;
+    grid-template-rows: var(--topbar-h) 1fr;
     grid-template-areas:
       "topbar"
-      "main"
-      "sidebar";
+      "main";
   }
 
   body.has-sidebar .main-sidebar {
@@ -4022,7 +4021,7 @@ body.has-sidebar #sim-panel {
   }
 
   body.has-sidebar .shell {
-    padding: 16px 16px 90px;
+    padding: 16px 16px 24px;
   }
 
   .sidebar-nav {
@@ -4135,16 +4134,13 @@ body.has-sidebar #sim-panel {
     padding-top: 0;
   }
 
-  /* ── 0b. View-tabs: fixed under topbar ────────────────────────────
-     position:sticky breaks when html/body has overflow-x:hidden
-     (browser routes scroll through html making sticky ineffective).
-     position:fixed is reliable on mobile; push content down to
-     avoid the fixed bar overlapping the first card.                  */
+  /* ── 0b. View-tabs: sticky under topbar ────────────────────────────
+     overflow-x:clip (not hidden) on html preserves sticky context.
+     position:sticky scrolls naturally with content and snaps when
+     it reaches the topbar — no jitter, no layout shift.             */
   .view-tabs {
-    position: fixed;
+    position: sticky;
     top: var(--topbar-h);
-    left: 0;
-    right: 0;
     border-radius: 0;
     border-bottom: 1px solid var(--line);
     box-shadow: 0 2px 8px rgba(15,23,42,0.06);
@@ -4152,19 +4148,9 @@ body.has-sidebar #sim-panel {
     margin: 0;
     width: 100%;
     z-index: 50;
+    background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    background: rgba(255, 255, 255, 0.97);
-  }
-
-  /* Push shell content down so first card isn't hidden under the fixed tabs */
-  body.has-sidebar .shell {
-    padding-top: 52px;
-  }
-
-  /* Also push area-view content (same tab bar pattern) */
-  #area-view .view-tabs {
-    top: var(--topbar-h);
   }
 
   /* ── 1. Topbar: stay single row ───────────────────────────────────
@@ -4206,21 +4192,20 @@ body.has-sidebar #sim-panel {
     font-size: 1rem;
   }
 
-  /* ── 3. Sim / DEMO panel: sit above the bottom nav bar ───────────
-     The 720px block places the panel at bottom:12px, which puts it
-     directly behind the fixed bottom nav (≈56px).  Raise it.       */
+  /* ── 3. Sim / DEMO panel: default position (no bottom nav to avoid) */
   #sim-panel {
-    bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* ── 4. Shell padding: respect iPhone home-indicator safe area ── */
+  /* ── 4. Shell padding: just safe area for iPhone home indicator ── */
   body.has-sidebar .shell {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* ── 5. Bottom nav: safe-area-aware height ───────────────────────*/
-  .sidebar-mobile-bottom {
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  /* ── 5. Bottom nav: hidden entirely ─────────────────────────────*/
+  .sidebar-mobile-bottom,
+  #mobile-bottom-nav {
+    display: none !important;
   }
 
   /* ── 6. Modals: safe area on bottom edge ─────────────────────────
@@ -4423,10 +4408,9 @@ body.has-sidebar #sim-panel {
     flex-shrink: 0;
   }
 
-  /* ── 18. Map: unusable on 375px, hide ──────────────────────────── */
-  .map-card,
-  .overview-map-card,
-  #area-map-card { display: none !important; }
+  /* ── 18. Company overview map: too small on 375px, hide ────────── */
+  /* Only hide the company-level map (#map-card in dashboard), not the area map */
+  #map-card { display: none !important; }
 
   /* ── 19. Stats grid: 2 cols, tighter, smaller label ────────────── */
   .stats-grid {
