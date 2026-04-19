@@ -63,7 +63,12 @@
       "Bash(.venv/bin/alembic history:*)",
       "Bash(.venv/bin/alembic current:*)",
       "Bash(DATABASE_URL=\"sqlite:///./test_fresh.db\" .venv/bin/alembic upgrade head)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(grep -r \"render\\\\.com\\\\|onrender\" /Users/guysharivker/PyCharmMiscProject/ --include=*.py --include=*.toml --include=*.txt --include=*.json --include=*.yaml --include=*.yml -l)",
+      "Bash(grep -r \"render.com\\\\|bayitpro\\\\|onrender\" /Users/guysharivker/PyCharmMiscProject/ --include=*.py --include=*.env* --include=*.toml --include=*.txt --include=*.md)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

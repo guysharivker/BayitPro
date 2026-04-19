@@ -57,6 +57,150 @@ const URGENCY_LABELS = {
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const URGENCY_PRIORITY = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
 
+// =============================================================================
+// MODAL FOCUS MANAGEMENT & ACCESSIBILITY UTILITIES
+// =============================================================================
+
+// WCAG 2.1 focus-trap utility ────────────────────────────────────────────────
+const FOCUSABLE_SELECTORS = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+let _activeFocusTrap = null;
+let _focusTrapPrevActiveEl = null;
+let _escapeHandler = null;
+
+function trapFocus(modalEl) {
+  _focusTrapPrevActiveEl = document.activeElement;
+  const focusable = Array.from(modalEl.querySelectorAll(FOCUSABLE_SELECTORS)).filter(
+    el => !el.closest('[aria-hidden="true"]')
+  );
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  function handleKeyDown(e) {
+    if (e.key !== 'Tab') return;
+    if (focusable.length === 0) { e.preventDefault(); return; }
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+
+  modalEl.addEventListener('keydown', handleKeyDown);
+  _activeFocusTrap = { el: modalEl, handler: handleKeyDown };
+
+  // Focus first focusable element
+  if (first) first.focus();
+}
+
+function releaseFocusTrap() {
+  if (_activeFocusTrap) {
+    _activeFocusTrap.el.removeEventListener('keydown', _activeFocusTrap.handler);
+    _activeFocusTrap = null;
+  }
+  if (_escapeHandler) {
+    document.removeEventListener('keydown', _escapeHandler);
+    _escapeHandler = null;
+  }
+  if (_focusTrapPrevActiveEl && typeof _focusTrapPrevActiveEl.focus === 'function') {
+    _focusTrapPrevActiveEl.focus();
+    _focusTrapPrevActiveEl = null;
+  }
+}
+
+function openModal(modalId, { labelId } = {}) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  trapFocus(modal.querySelector('.modal-card, .worker-detail-card, .payroll-report-card, .wa-sim-card') || modal);
+}
+
+function closeModalById(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+  releaseFocusTrap();
+}
+
+// Global Escape key handler – closes the topmost open modal/drawer ────────────
+document.addEventListener('keydown', function globalEscHandler(e) {
+  if (e.key !== 'Escape') return;
+  // Ticket detail has its own handler – skip if active
+  if (_ticketDetailId != null) return;
+
+  const openModals = [
+    'wa-sim-modal',
+    'worker-detail-modal',
+    'payroll-report-modal',
+    'deduction-modal',
+    'report-problem-modal',
+    'swap-modal',
+    'building-modal',
+    'add-building-modal',
+  ];
+
+  for (const id of openModals) {
+    const el = document.getElementById(id);
+    if (el && !el.classList.contains('hidden')) {
+      closeModalById(id);
+      // Call specific close logic if needed (to reset state)
+      const closeFns = {
+        'swap-modal': () => document.getElementById('swap-modal')?.classList.add('hidden'),
+        'report-problem-modal': () => document.getElementById('report-problem-modal')?.classList.add('hidden'),
+        'add-building-modal': () => document.getElementById('add-building-modal')?.classList.add('hidden'),
+      };
+      if (closeFns[id]) closeFns[id]();
+      return;
+    }
+  }
+
+  // Close alerts drawer if open
+  if (_alertsOpen) { toggleAlertsDrawer(); return; }
+  // Close mobile menu sheet if open
+  const mobileSheet = document.getElementById('mobile-menu-sheet');
+  if (mobileSheet && !mobileSheet.classList.contains('hidden')) { closeMobileMenuSheet(); return; }
+});
+
+// Arrow-key tab navigation ───────────────────────────────────────────────────
+function setupTabKeyNav(tablistId, panels) {
+  const tablist = document.getElementById(tablistId);
+  if (!tablist) return;
+
+  tablist.addEventListener('keydown', function(e) {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]:not(.hidden)'));
+    const idx = tabs.indexOf(document.activeElement);
+    if (idx === -1) return;
+
+    let next = -1;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      // RTL: right key = previous, left key = next
+      const dir = e.key === 'ArrowLeft' ? 1 : -1;
+      next = (idx + dir + tabs.length) % tabs.length;
+    } else if (e.key === 'Home') {
+      e.preventDefault(); next = 0;
+    } else if (e.key === 'End') {
+      e.preventDefault(); next = tabs.length - 1;
+    }
+
+    if (next >= 0) {
+      tabs[next].focus();
+      tabs[next].click(); // activate the tab
+    }
+  });
+}
+
+
+
 function isMobile() {
   return window.matchMedia("(max-width: 768px)").matches;
 }
@@ -94,6 +238,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupUserMenu();
   renderLucideIcons();
   startRefreshTicker();
+  setupTabKeyNav("dashboard-tablist", ["overview","areas","insights","financial","my-schedule"]);
+  setupTabKeyNav("area-tablist", ["overview","tickets","buildings","workers","schedule","payroll"]);
   document.body.classList.add("has-sidebar");
   loadDashboard();
   connectWebSocket();
@@ -1022,7 +1168,7 @@ async function openWorkerDetail(workerId, yearMonth) {
   const modal = document.getElementById("worker-detail-modal");
   const body = document.getElementById("worker-detail-body");
   body.innerHTML = '<div class="loading-state">טוען פרטי עובד...</div>';
-  modal.classList.remove("hidden");
+  openModal("worker-detail-modal");
 
   const now = new Date();
   const ym = yearMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -1280,7 +1426,7 @@ async function showBuilding(buildingId) {
     }
   `;
 
-  document.getElementById("building-modal").classList.remove("hidden");
+  openModal("building-modal");
 }
 
 function closeBuildingModal(event) {
@@ -2078,7 +2224,7 @@ async function openSwapModal(buildingId, buildingName, originalWorkerName, date)
     select.innerHTML = '<option value="">שגיאה בטעינת עובדים</option>';
   }
 
-  document.getElementById("swap-modal").classList.remove("hidden");
+  openModal("swap-modal");
 }
 
 function closeSwapModal(e) {
@@ -2109,7 +2255,7 @@ async function submitSwap() {
       }),
     });
 
-    document.getElementById("swap-modal").classList.add("hidden");
+    closeModalById("swap-modal");
     showToast(`החלפה נוצרה בהצלחה ל-${swapContext.buildingName}`, "success");
     loadSchedule();
   } catch (e) {
@@ -2504,7 +2650,7 @@ async function showAddDeductionModal() {
   document.getElementById("ded-date").value = new Date().toISOString().slice(0, 10);
   document.getElementById("ded-reason").value = "";
   document.getElementById("ded-error").classList.add("hidden");
-  modal.classList.remove("hidden");
+  openModal("deduction-modal");
 }
 
 async function populateDedBuildings() {
@@ -2542,7 +2688,7 @@ async function submitDeduction() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ worker_id: workerId, building_id: buildingId, work_date: workDate, reason: reason || null }),
     });
-    document.getElementById("deduction-modal").classList.add("hidden");
+    closeModalById("deduction-modal");
     showToast("ניכוי נשמר", "success");
     loadDeductionsList(currentAreaId);
     loadAreaPayrollSummary(currentAreaId);
@@ -2575,7 +2721,7 @@ function openWorkerPayrollReport(workerId, workerName) {
   const firstOfMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
   document.getElementById("payroll-report-from").value = firstOfMonth;
   document.getElementById("payroll-report-to").value = today.toISOString().slice(0, 10);
-  document.getElementById("payroll-report-modal").classList.remove("hidden");
+  openModal("payroll-report-modal");
   fetchPayrollReport();
 }
 
@@ -2996,12 +3142,12 @@ function openWaSimModal() {
   document.getElementById("wa-sim-result").classList.add("hidden");
   document.getElementById("wa-sim-submit").disabled = false;
   document.getElementById("wa-sim-submit").textContent = "שלח הודעה";
-  document.getElementById("wa-sim-modal").classList.remove("hidden");
+  openModal("wa-sim-modal");
 }
 
 function closeWaSimModal(e) {
-  if (e && e.target !== document.getElementById("wa-sim-modal")) return;
-  document.getElementById("wa-sim-modal").classList.add("hidden");
+  if (e && e.target !== document.getElementById("wa-sim-modal") && !e.target.classList.contains("modal-close")) return;
+  closeModalById("wa-sim-modal");
 }
 
 async function submitWaSim() {
@@ -3292,12 +3438,12 @@ function openAddBuildingModal() {
   document.getElementById("ab-error").classList.add("hidden");
   document.getElementById("ab-submit-btn").disabled = false;
   document.getElementById("ab-submit-btn").textContent = "הוסף בניין";
-  document.getElementById("add-building-modal").classList.remove("hidden");
+  openModal("add-building-modal");
 }
 
 function closeAddBuildingModal(e) {
-  if (e && e.target !== document.getElementById("add-building-modal")) return;
-  document.getElementById("add-building-modal").classList.add("hidden");
+  if (e && e.target !== document.getElementById("add-building-modal") && !e.target.classList.contains("modal-close")) return;
+  closeModalById("add-building-modal");
 }
 
 async function submitAddBuilding() {
@@ -3336,7 +3482,7 @@ async function submitAddBuilding() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    document.getElementById("add-building-modal").classList.add("hidden");
+    closeModalById("add-building-modal");
     showToast(`הבניין "${name}" נוסף בהצלחה`, "success");
     // Reload area to refresh buildings list + allBuildings cache
     await showArea(currentAreaId, { keepPanel: true });
@@ -3553,12 +3699,12 @@ async function openReportProblemModal() {
   document.getElementById("rp-error").classList.add("hidden");
   document.getElementById("rp-submit-btn").disabled = false;
   document.getElementById("rp-submit-btn").textContent = "שלח דיווח";
-  document.getElementById("report-problem-modal").classList.remove("hidden");
+  openModal("report-problem-modal");
 }
 
 function closeReportProblemModal(e) {
-  if (e && e.target !== document.getElementById("report-problem-modal")) return;
-  document.getElementById("report-problem-modal").classList.add("hidden");
+  if (e && e.target !== document.getElementById("report-problem-modal") && !e.target.classList.contains("modal-close")) return;
+  closeModalById("report-problem-modal");
 }
 
 async function submitReportProblem() {
@@ -3585,7 +3731,7 @@ async function submitReportProblem() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ building_id: buildingId, category, urgency, description }),
     });
-    document.getElementById("report-problem-modal").classList.add("hidden");
+    closeModalById("report-problem-modal");
     showToast("הדיווח נשלח בהצלחה", "success");
     // Reload to refresh ticket counts
     loadWorkerDashboard();
@@ -3606,11 +3752,12 @@ async function submitReportProblem() {
 function setSidebarActive(key) {
   document.querySelectorAll(".sidebar-item, .mobile-nav-item").forEach(el => {
     el.classList.remove("active");
+    el.removeAttribute("aria-current");
   });
   const sidebarItem = document.getElementById(`snav-${key}`);
   const mobileItem = document.getElementById(`mnav-${key}`);
-  if (sidebarItem) sidebarItem.classList.add("active");
-  if (mobileItem) mobileItem.classList.add("active");
+  if (sidebarItem) { sidebarItem.classList.add("active"); sidebarItem.setAttribute("aria-current", "page"); }
+  if (mobileItem) { mobileItem.classList.add("active"); mobileItem.setAttribute("aria-current", "page"); }
 }
 
 function sidebarNav(key) {

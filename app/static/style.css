@@ -59,8 +59,11 @@ a {
 
 button:focus-visible,
 [role="button"]:focus-visible,
-a:focus-visible {
-  outline: 2px solid #2a7a6e;
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #0f766e;
   outline-offset: 2px;
 }
 
@@ -111,8 +114,8 @@ a:focus-visible {
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -303,7 +306,8 @@ canvas {
   color: var(--primary-strong);
 }
 
-.view-tab.is-active {
+.view-tab.is-active,
+.view-tab[aria-selected="true"] {
   background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
   color: #ffffff;
   box-shadow: var(--shadow-sm);
@@ -475,7 +479,7 @@ canvas {
   margin-bottom: 6px;
   padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -3791,7 +3795,8 @@ body.has-sidebar #sim-panel {
   color: var(--primary);
 }
 
-.sidebar-item.active {
+.sidebar-item.active,
+.sidebar-item[aria-current="page"] {
   background: var(--primary-soft);
   color: var(--primary);
   font-weight: 600;
@@ -4850,5 +4855,129 @@ body.has-sidebar #sim-panel {
     margin-top: 4px;
     font-size: 0.85rem;
     color: var(--muted);
+  }
+}
+
+/* =====================================================================
+   PHONE-FIRST ENHANCEMENTS (375px+)
+   ===================================================================== */
+
+/* sr-only — screen-reader only labels for date inputs etc */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Ensure all interactive elements meet 44px touch target minimum */
+button,
+[role="button"],
+.view-tab,
+.sidebar-item,
+.mobile-nav-item,
+.btn-primary,
+.btn-ghost {
+  min-height: 44px;
+}
+
+/* Modal overlay: click outside to close — visual affordance */
+.modal-overlay {
+  cursor: pointer;
+}
+.modal-card,
+.worker-detail-card,
+.payroll-report-card,
+.wa-sim-card {
+  cursor: default;
+}
+
+/* Prevent body scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Tab focus rings for tab buttons */
+.view-tab:focus-visible {
+  outline: 3px solid #0f766e;
+  outline-offset: -2px;
+  z-index: 1;
+  position: relative;
+}
+
+/* Smooth open/close animation for modals */
+.modal-overlay:not(.hidden) {
+  animation: fadeIn 0.15s ease-out;
+}
+.modal-overlay:not(.hidden) .modal-card,
+.modal-overlay:not(.hidden) .worker-detail-card,
+.modal-overlay:not(.hidden) .payroll-report-card {
+  animation: slideUp 0.2s ease-out;
+}
+
+/* Larger close button for all modals */
+.modal-close {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+.modal-close:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--text);
+}
+.modal-close:focus-visible {
+  outline: 3px solid #0f766e;
+}
+
+/* Improve alerts drawer for mobile */
+@media (max-width: 480px) {
+  .alerts-drawer {
+    width: 100vw;
+    right: 0;
+    left: 0;
+    border-radius: 16px 16px 0 0;
+    bottom: 0;
+    top: auto;
+    max-height: 75vh;
+  }
+}
+
+/* Compact form rows on very small screens */
+@media (max-width: 375px) {
+  .form-row label {
+    font-size: 0.88rem;
+  }
+  .swap-modal-title {
+    font-size: 1.05rem;
+  }
+  .btn-primary, .btn-ghost {
+    font-size: 0.9rem;
+    padding: 10px 14px;
+  }
+}
+
+/* Payroll layout: stack cards on mobile */
+@media (max-width: 768px) {
+  .payroll-layout {
+    display: grid;
+    gap: 16px;
   }
 }
