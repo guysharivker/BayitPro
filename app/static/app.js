@@ -16,6 +16,9 @@ let areaDetailsCache = {};
 let ws = null;
 let allBuildings = [];
 let allTickets = [];
+let activeAreaTickets = [];
+let activeAreaBuildings = [];
+let activeAreaTicketsForBuildings = [];
 let companyMap = null;
 let areaMap = null;
 let companyMapLayer = null;
@@ -56,6 +59,19 @@ const URGENCY_LABELS = {
 
 const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 const URGENCY_PRIORITY = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+const areaTicketControls = {
+  query: "",
+  urgency: "all",
+  status: "all",
+  sort: "priority",
+};
+
+const areaBuildingControls = {
+  query: "",
+  state: "all",
+  sort: "attention",
+};
 
 // =============================================================================
 // MODAL FOCUS MANAGEMENT & ACCESSIBILITY UTILITIES
@@ -181,7 +197,11 @@ function setupTabKeyNav(tablistId, panels) {
     if (idx === -1) return;
 
     let next = -1;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      document.activeElement.click();
+      return;
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
       // RTL: right key = previous, left key = next
       const dir = e.key === 'ArrowLeft' ? 1 : -1;
@@ -244,6 +264,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   loadDashboard();
   connectWebSocket();
 });
+
+let _lastTabPointerActivation = { id: "", at: 0 };
+
+function activateViewTabFromPointer(event) {
+  const tabEl = event.target.closest?.(".view-tab[role='tab']");
+  if (!tabEl) return;
+
+  const now = Date.now();
+  if (_lastTabPointerActivation.id === tabEl.id && now - _lastTabPointerActivation.at < 180) {
+    return;
+  }
+  _lastTabPointerActivation = { id: tabEl.id, at: now };
+
+  const dashboardPrefix = "dashboard-tab-";
+  const areaPrefix = "area-tab-";
+  if (tabEl.id?.startsWith(dashboardPrefix)) {
+    showDashboardPanel(tabEl.id.slice(dashboardPrefix.length));
+    tabEl.focus({ preventScroll: true });
+  } else if (tabEl.id?.startsWith(areaPrefix)) {
+    showAreaPanel(tabEl.id.slice(areaPrefix.length));
+    tabEl.focus({ preventScroll: true });
+  }
+}
+
+document.addEventListener("click", activateViewTabFromPointer, true);
+document.addEventListener("pointerdown", activateViewTabFromPointer, true);
+document.addEventListener("mousedown", activateViewTabFromPointer, true);
+document.addEventListener("touchstart", activateViewTabFromPointer, { capture: true, passive: false });
 
 async function api(path, options = {}) {
   const token = getToken();
@@ -468,7 +516,7 @@ function renderCompanyStats() {
     },
     {
       value: dashboardData.sla_breached_count,
-      label: "מאחרות",
+      label: "עברו יעד טיפול",
       className: "stat-sla",
       icon: "⚠️",
     },
@@ -496,11 +544,11 @@ function renderAreaCards() {
       const areaMeta = areasData.find((area) => area.id === summary.area_id);
       const buildingCount = areaMeta ? areaMeta.building_count : 0;
       const metaId = `area-card-meta-${summary.area_id}`;
-      const ariaLabel = `אזור ${summary.area_name}. ${buildingCount} בניינים. ${summary.open_tickets} קריאות פתוחות. ${summary.sla_breached_count > 0 ? `${summary.sla_breached_count} מאחרות.` : "ללא מאחרות."}`;
+      const ariaLabel = `אזור ${summary.area_name}. ${buildingCount} בניינים. ${summary.open_tickets} קריאות פתוחות. ${summary.sla_breached_count > 0 ? `${summary.sla_breached_count} עברו יעד.` : "ללא חריגות יעד."}`;
 
       let primaryBadge;
       if (summary.sla_breached_count > 0) {
-        primaryBadge = `<span class="area-primary-badge is-danger">🚨 ${summary.sla_breached_count} מאחרות</span>`;
+        primaryBadge = `<span class="area-primary-badge is-danger">🚨 ${summary.sla_breached_count} עברו יעד</span>`;
       } else if (summary.open_tickets > 0) {
         primaryBadge = `<span class="area-primary-badge is-warning">${summary.open_tickets} פתוחות</span>`;
       } else {
@@ -573,7 +621,7 @@ function renderCompanyAlerts() {
             class="alert-card ${area.sla_breached_count > 0 ? "is-danger" : "is-warning"}"
             role="button"
             tabindex="0"
-            aria-label="${escapeHtml(`התראה לאזור ${area.area_name}. ${area.sla_breached_count > 0 ? `${area.sla_breached_count} מאחרות ו-${area.open_tickets} קריאות פתוחות` : `${area.open_tickets} קריאות פתוחות דורשות מעקב`}`)}"
+            aria-label="${escapeHtml(`התראה לאזור ${area.area_name}. ${area.sla_breached_count > 0 ? `${area.sla_breached_count} עברו יעד ו-${area.open_tickets} קריאות פתוחות` : `${area.open_tickets} קריאות פתוחות דורשות מעקב`}`)}"
             onclick="showArea(${area.area_id})"
             onkeydown="handleCardKeyDown(event, () => showArea(${area.area_id}))"
           >
@@ -581,7 +629,7 @@ function renderCompanyAlerts() {
             <div class="alert-body">
               ${
                 area.sla_breached_count > 0
-                  ? `${area.sla_breached_count} מאחרות ו-${area.open_tickets} קריאות פתוחות`
+                  ? `${area.sla_breached_count} עברו יעד ו-${area.open_tickets} קריאות פתוחות`
                   : `${area.open_tickets} קריאות פתוחות דורשות מעקב`
               }
             </div>
@@ -767,7 +815,7 @@ function renderMyDayStrip(summary, openTickets, workers) {
       </button>
       <button type="button" class="my-day-cell is-warning" onclick="showAreaPanel('tickets', true)">
         <div class="md-value">${lateCount}</div>
-        <div class="md-label">מאחרות</div>
+        <div class="md-label">עברו יעד</div>
       </button>
     </div>
   `;
@@ -912,20 +960,17 @@ function renderArea(summary, tickets, buildings, workers, areaMeta) {
     statCard({ value: summary.open_tickets, label: "פתוחות", className: "stat-open", icon: "📂" }),
     statCard({ value: summary.in_progress_tickets, label: "בטיפול", className: "stat-progress", icon: "🔄" }),
     statCard({ value: summary.done_tickets, label: "הושלמו", className: "stat-done", icon: "✓" }),
-    statCard({ value: summary.sla_breached_count, label: "מאחרות", className: "stat-sla", icon: "⚠️" }),
+    statCard({ value: summary.sla_breached_count, label: "עברו יעד", className: "stat-sla", icon: "⚠️" }),
   ].join("");
 
   /* --- Ticket list --- */
-  document.getElementById("area-tickets").innerHTML = openTickets.length
-    ? `<div class="ticket-legend" aria-label="מקרא דחיפות">🔴 קריטי · 🟠 גבוה · 🔵 בינוני</div>${openTickets
-        .map(renderTicket)
-        .join("")}`
-    : `<div class="empty-state">אין כרגע קריאות פעילות באזור הזה.</div>`;
+  activeAreaTickets = openTickets;
+  renderAreaTicketsList(openTickets);
 
   /* --- Buildings list --- */
-  document.getElementById("area-buildings").innerHTML = buildings.length
-    ? buildings.map((building) => renderBuildingCard(building, tickets)).join("")
-    : `<div class="empty-state">אין עדיין בניינים באזור.</div>`;
+  activeAreaBuildings = buildings;
+  activeAreaTicketsForBuildings = tickets;
+  renderAreaBuildingsList(buildings, tickets);
 
   /* --- Setup wizard for empty areas --- */
   if (buildings.length === 0) {
@@ -974,6 +1019,235 @@ function renderArea(summary, tickets, buildings, workers, areaMeta) {
   }
 
   showAreaPanel(activeAreaPanel, true);
+}
+
+function normalizeSearchText(value) {
+  return String(value || "").toLowerCase().trim();
+}
+
+function ticketSearchText(ticket) {
+  return normalizeSearchText([
+    ticket.description,
+    ticket.building_text_raw,
+    ticket.building_name,
+    ticket.public_id,
+    ticket.assigned_supplier?.name,
+    CATEGORY_LABELS[ticket.category],
+    STATUS_LABELS[ticket.status],
+  ].join(" "));
+}
+
+function sortTicketsForView(tickets, sortKey) {
+  const sorted = [...tickets];
+  if (sortKey === "recent") {
+    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  } else if (sortKey === "oldest") {
+    sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  } else if (sortKey === "building") {
+    sorted.sort((a, b) => String(a.building_text_raw || "").localeCompare(String(b.building_text_raw || ""), "he"));
+  } else {
+    sorted.sort(compareTickets);
+  }
+  return sorted;
+}
+
+function renderAreaTicketsList(tickets = activeAreaTickets) {
+  const container = document.getElementById("area-tickets");
+  if (!container) return;
+
+  const query = normalizeSearchText(areaTicketControls.query);
+  const filtered = tickets.filter((ticket) => {
+    if (areaTicketControls.urgency !== "all" && ticket.urgency !== areaTicketControls.urgency) return false;
+    if (areaTicketControls.status !== "all" && ticket.status !== areaTicketControls.status) return false;
+    if (query && !ticketSearchText(ticket).includes(query)) return false;
+    return true;
+  });
+  const sorted = sortTicketsForView(filtered, areaTicketControls.sort);
+
+  const controls = `
+    <div class="list-toolbar" role="search" aria-label="סינון קריאות">
+      <div class="list-search">
+        <label class="sr-only" for="area-ticket-search">חיפוש קריאה</label>
+        <input
+          id="area-ticket-search"
+          class="list-search-input"
+          type="search"
+          value="${escapeHtml(areaTicketControls.query)}"
+          placeholder="חיפוש לפי בניין, ספק או תיאור"
+          oninput="onAreaTicketSearch(this.value)"
+        >
+      </div>
+      <div class="list-filters">
+        <label>
+          <span>דחיפות</span>
+          <select class="list-filter-select" onchange="onAreaTicketFilter('urgency', this.value)">
+            ${selectHtmlOptions([
+              { value: "all", label: "הכול" },
+              { value: "CRITICAL", label: "דחוף" },
+              { value: "HIGH", label: "חשוב" },
+              { value: "MEDIUM", label: "רגיל" },
+              { value: "LOW", label: "נמוך" },
+            ], areaTicketControls.urgency)}
+          </select>
+        </label>
+        <label>
+          <span>סטטוס</span>
+          <select class="list-filter-select" onchange="onAreaTicketFilter('status', this.value)">
+            ${selectHtmlOptions([
+              { value: "all", label: "הכול" },
+              { value: "OPEN", label: "פתוח" },
+              { value: "IN_PROGRESS", label: "בטיפול" },
+            ], areaTicketControls.status)}
+          </select>
+        </label>
+        <label>
+          <span>מיון</span>
+          <select class="list-filter-select" onchange="onAreaTicketSort(this.value)">
+            ${selectHtmlOptions([
+              { value: "priority", label: "דחיפות קודם" },
+              { value: "recent", label: "חדשות קודם" },
+              { value: "oldest", label: "ישנות קודם" },
+              { value: "building", label: "לפי בניין" },
+            ], areaTicketControls.sort)}
+          </select>
+        </label>
+      </div>
+      <div class="list-result-count" aria-live="polite">מציג ${sorted.length} מתוך ${tickets.length}</div>
+    </div>
+  `;
+
+  const list = sorted.length
+    ? `<div class="ticket-legend" aria-label="מקרא דחיפות">דחוף · חשוב · רגיל</div>${sorted.map(renderTicket).join("")}`
+    : `<div class="empty-state">לא נמצאו קריאות לפי הסינון הנוכחי.</div>`;
+
+  container.innerHTML = `${controls}${list}`;
+}
+
+function onAreaTicketSearch(value) {
+  areaTicketControls.query = value;
+  renderAreaTicketsList();
+}
+
+function onAreaTicketFilter(field, value) {
+  areaTicketControls[field] = value;
+  renderAreaTicketsList();
+}
+
+function onAreaTicketSort(value) {
+  areaTicketControls.sort = value;
+  renderAreaTicketsList();
+}
+
+function buildingMatchesTicket(building, ticket) {
+  const text = (ticket.building_text_raw || "").trim();
+  return text && (text === building.address_text || text === building.name);
+}
+
+function getBuildingTicketSummary(building, tickets) {
+  const buildingTickets = tickets.filter((ticket) => buildingMatchesTicket(building, ticket));
+  const openTickets = buildingTickets.filter((t) => t.status !== "DONE");
+  const hasCritical = openTickets.some((t) => t.urgency === "CRITICAL" || t.sla_breached);
+  return { buildingTickets, openTickets, openCount: openTickets.length, hasCritical };
+}
+
+function buildingSearchText(building) {
+  return normalizeSearchText([
+    building.name,
+    building.address_text,
+    building.city,
+    building.current_worker?.name,
+  ].join(" "));
+}
+
+function renderAreaBuildingsList(buildings = activeAreaBuildings, tickets = activeAreaTicketsForBuildings) {
+  const container = document.getElementById("area-buildings");
+  if (!container) return;
+
+  const query = normalizeSearchText(areaBuildingControls.query);
+  const decorated = buildings.map((building) => ({ building, summary: getBuildingTicketSummary(building, tickets) }));
+  const filtered = decorated.filter(({ building, summary }) => {
+    if (areaBuildingControls.state === "attention" && summary.openCount === 0 && building.current_worker) return false;
+    if (areaBuildingControls.state === "open" && summary.openCount === 0) return false;
+    if (areaBuildingControls.state === "critical" && !summary.hasCritical) return false;
+    if (areaBuildingControls.state === "ok" && summary.openCount > 0) return false;
+    if (areaBuildingControls.state === "missing_worker" && building.current_worker) return false;
+    if (query && !buildingSearchText(building).includes(query)) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (areaBuildingControls.sort === "name") {
+      return String(a.building.name || "").localeCompare(String(b.building.name || ""), "he");
+    }
+    if (areaBuildingControls.sort === "worker") {
+      return String(a.building.current_worker?.name || "zzzz").localeCompare(String(b.building.current_worker?.name || "zzzz"), "he");
+    }
+    const score = (item) => (item.summary.hasCritical ? 3 : item.summary.openCount > 0 ? 2 : !item.building.current_worker ? 1 : 0);
+    return score(b) - score(a) || String(a.building.name || "").localeCompare(String(b.building.name || ""), "he");
+  });
+
+  const controls = `
+    <div class="list-toolbar" role="search" aria-label="סינון בניינים">
+      <div class="list-search">
+        <label class="sr-only" for="area-building-search">חיפוש בניין</label>
+        <input
+          id="area-building-search"
+          class="list-search-input"
+          type="search"
+          value="${escapeHtml(areaBuildingControls.query)}"
+          placeholder="חיפוש לפי שם, כתובת או עובד"
+          oninput="onAreaBuildingSearch(this.value)"
+        >
+      </div>
+      <div class="list-filters">
+        <label>
+          <span>מצב</span>
+          <select class="list-filter-select" onchange="onAreaBuildingFilter('state', this.value)">
+            ${selectHtmlOptions([
+              { value: "all", label: "כל הבניינים" },
+              { value: "attention", label: "דורשים תשומת לב" },
+              { value: "critical", label: "דחופים" },
+              { value: "open", label: "עם קריאות" },
+              { value: "ok", label: "ללא קריאות" },
+              { value: "missing_worker", label: "ללא עובד" },
+            ], areaBuildingControls.state)}
+          </select>
+        </label>
+        <label>
+          <span>מיון</span>
+          <select class="list-filter-select" onchange="onAreaBuildingSort(this.value)">
+            ${selectHtmlOptions([
+              { value: "attention", label: "בעיה קודם" },
+              { value: "name", label: "שם בניין" },
+              { value: "worker", label: "עובד אחראי" },
+            ], areaBuildingControls.sort)}
+          </select>
+        </label>
+      </div>
+      <div class="list-result-count" aria-live="polite">מציג ${filtered.length} מתוך ${buildings.length}</div>
+    </div>
+  `;
+
+  const list = filtered.length
+    ? filtered.map(({ building }) => renderBuildingCard(building, tickets)).join("")
+    : `<div class="empty-state">לא נמצאו בניינים לפי הסינון הנוכחי.</div>`;
+
+  container.innerHTML = buildings.length ? `${controls}${list}` : `<div class="empty-state">אין עדיין בניינים באזור.</div>`;
+}
+
+function onAreaBuildingSearch(value) {
+  areaBuildingControls.query = value;
+  renderAreaBuildingsList();
+}
+
+function onAreaBuildingFilter(field, value) {
+  areaBuildingControls[field] = value;
+  renderAreaBuildingsList();
+}
+
+function onAreaBuildingSort(value) {
+  areaBuildingControls.sort = value;
+  renderAreaBuildingsList();
 }
 
 function renderTicket(ticket) {
@@ -1035,13 +1309,7 @@ function renderTicket(ticket) {
 }
 
 function renderBuildingCard(building, tickets) {
-  const buildingTickets = tickets.filter((ticket) => {
-    const text = (ticket.building_text_raw || "").trim();
-    return text && (text === building.address_text || text === building.name);
-  });
-  const openTickets = buildingTickets.filter((t) => t.status !== "DONE");
-  const openCount = openTickets.length;
-  const hasCritical = openTickets.some((t) => t.urgency === "CRITICAL" || t.sla_breached);
+  const { openTickets, openCount, hasCritical } = getBuildingTicketSummary(building, tickets);
 
   let pillClass = "";
   let pillText = "✓ ללא קריאות פתוחות";
@@ -1796,6 +2064,63 @@ function getTimeAgo(dateStr) {
   return formatDaysAgo(diffDays);
 }
 
+function formatDateShort(dateStr) {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleDateString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatDateTimeShort(dateStr) {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleString("he-IL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatCurrency(value, { sign = false } = {}) {
+  const num = Number(value || 0);
+  const rounded = Math.round(Math.abs(num));
+  const prefix = sign && num > 0 ? "+" : num < 0 ? "-" : "";
+  return `${prefix}₪${rounded.toLocaleString("he-IL")}`;
+}
+
+function maskPhone(phone) {
+  if (!phone) return "—";
+  const digits = String(phone).replace(/\D/g, "");
+  if (digits.length < 4) return "••••";
+  return `•••${digits.slice(-4)}`;
+}
+
+function canViewSensitiveDetails() {
+  return currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "COMPANY_ADMIN" || currentUser?.role === "AREA_MANAGER";
+}
+
+function phoneForDisplay(phone) {
+  return canViewSensitiveDetails() ? (phone || "—") : maskPhone(phone);
+}
+
+function setElementHidden(id, hidden) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle("hidden", hidden);
+}
+
+function selectHtmlOptions(options, selectedValue) {
+  return options.map(({ value, label }) => (
+    `<option value="${escapeHtml(value)}" ${String(selectedValue) === String(value) ? "selected" : ""}>${escapeHtml(label)}</option>`
+  )).join("");
+}
+
 function updateRefreshTime() {
   const now = new Date();
   lastUpdatedAt = now;
@@ -1851,6 +2176,9 @@ function showDashboardPanel(panel, preserveScroll = false) {
       tabEl.classList.toggle("is-active", isActive);
       tabEl.setAttribute("aria-selected", String(isActive));
       tabEl.tabIndex = isActive ? 0 : -1;
+      if (isActive && !preserveScroll && typeof tabEl.scrollIntoView === "function") {
+        tabEl.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      }
     }
   });
 
@@ -1882,6 +2210,9 @@ function showAreaPanel(panel, preserveScroll = false) {
       tabEl.classList.toggle("is-active", isActive);
       tabEl.setAttribute("aria-selected", String(isActive));
       tabEl.tabIndex = isActive ? 0 : -1;
+      if (isActive && !preserveScroll && typeof tabEl.scrollIntoView === "function") {
+        tabEl.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      }
     }
   });
 
@@ -2525,7 +2856,7 @@ async function loadLastEntryTable(areaId) {
         <div class="le-head"><span>בניין</span><span>עובד אחרון</span><span>כניסה אחרונה</span></div>
         ${entries.map(e => {
           const timeStr = e.last_clock_in_at
-            ? new Date(e.last_clock_in_at).toLocaleString("he-IL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+            ? formatDateTimeShort(e.last_clock_in_at)
             : "—";
           const ago = e.last_clock_in_at ? timeAgo(new Date(e.last_clock_in_at)) : "";
           return `
@@ -2571,28 +2902,29 @@ function renderAreaPayrollSummary(overview) {
     <div class="payroll-info-bar">${monthLabel} · ${overview.working_days} ימי עבודה</div>
     <div class="payroll-workers-list">
       ${overview.workers.map(w => `
-        <div class="payroll-worker-row">
-          <div class="payroll-worker-name">
-            ${escapeHtml(w.worker_name)}
-            <button class="btn-ghost payroll-detail-btn" onclick="openWorkerPayrollReport(${w.worker_id}, '${escapeHtml(w.worker_name)}')">דוח</button>
-          </div>
+        <details class="payroll-worker-row" ${isMobile() ? "" : "open"}>
+          <summary class="payroll-worker-summary">
+            <span class="payroll-worker-name">${escapeHtml(w.worker_name)}</span>
+            <span class="payroll-worker-total">${formatCurrency(w.total_earned)}</span>
+            <button class="btn-ghost payroll-detail-btn" onclick="event.preventDefault(); openWorkerPayrollReport(${w.worker_id}, '${escapeHtml(w.worker_name)}')">דוח</button>
+          </summary>
           <div class="payroll-worker-stats">
             <span>${w.total_buildings} בניינים</span>
-            <span class="payroll-rate">תקרה: ₪${w.total_monthly_rate.toLocaleString()}</span>
-            <span class="payroll-earned">שולם: ₪${w.total_earned.toLocaleString()}</span>
+            <span class="payroll-rate">תקרה: ${formatCurrency(w.total_monthly_rate)}</span>
+            <span class="payroll-earned">שולם: ${formatCurrency(w.total_earned)}</span>
           </div>
           <div class="payroll-buildings-mini">
             ${w.buildings.map(b => `
               <div class="payroll-bldg-mini">
                 <span class="payroll-bldg-name">${escapeHtml(b.building_name)}</span>
                 <span>${b.days_worked}/${b.working_days_in_month} ימים</span>
-                <span class="payroll-rate-mini">₪${b.daily_rate}/יום</span>
+                <span class="payroll-rate-mini">${formatCurrency(b.daily_rate)}/יום</span>
                 ${b.deduction_days ? `<span class="payroll-ded">-${b.deduction_days} ניכוי</span>` : ""}
                 ${b.swap_days ? `<span class="payroll-swap">+${b.swap_days} החלפות</span>` : ""}
               </div>`).join("")}
             ${!w.buildings.length ? '<div class="muted">אין נתוני נוכחות</div>' : ""}
           </div>
-        </div>`).join("")}
+        </details>`).join("")}
     </div>`;
 }
 
@@ -2760,11 +3092,11 @@ function renderPayrollReport(report) {
     <div class="pr-building-row">
       <div class="pr-building-name">${escapeHtml(b.building_name)}</div>
       <div class="pr-building-stats">
-        <span>₪${b.daily_rate}/יום</span>
+        <span>${formatCurrency(b.daily_rate)}/יום</span>
         <span>${b.days_worked} ימים רגילים</span>
         ${b.swap_days ? `<span class="payroll-swap">+${b.swap_days} החלפות</span>` : ""}
         ${b.deduction_days ? `<span class="payroll-ded">-${b.deduction_days} ניכויים</span>` : ""}
-        <span class="pr-building-total">₪${b.earnings.toLocaleString()}</span>
+        <span class="pr-building-total">${formatCurrency(b.earnings)}</span>
       </div>
     </div>`).join("");
 
@@ -2774,10 +3106,10 @@ function renderPayrollReport(report) {
       ${summaryRow("ימי עבודה רגילים", report.total_days_worked)}
       ${report.total_swap_days ? summaryRow("ימי החלפה (שעות נוספות)", report.total_swap_days, "payroll-swap") : ""}
       ${report.total_deduction_days ? summaryRow("ניכויים", `${report.total_deduction_days} ימים`, "payroll-ded") : ""}
-      ${summaryRow("שכר בסיס", `₪${report.total_regular_earnings.toLocaleString()}`)}
-      ${report.total_swap_earnings ? summaryRow("תוספת החלפות", `₪${report.total_swap_earnings.toLocaleString()}`, "payroll-swap") : ""}
-      ${report.total_deductions_amount ? summaryRow("סה\"כ ניכויים", `-₪${report.total_deductions_amount.toLocaleString()}`, "payroll-ded") : ""}
-      ${summaryRow("סה\"כ לתשלום", `₪${report.net_earnings.toLocaleString()}`, "pr-total")}
+      ${summaryRow("שכר בסיס", formatCurrency(report.total_regular_earnings))}
+      ${report.total_swap_earnings ? summaryRow("תוספת החלפות", formatCurrency(report.total_swap_earnings), "payroll-swap") : ""}
+      ${report.total_deductions_amount ? summaryRow("סה\"כ ניכויים", formatCurrency(-Math.abs(report.total_deductions_amount)), "payroll-ded") : ""}
+      ${summaryRow("סה\"כ לתשלום", formatCurrency(report.net_earnings), "pr-total")}
     </div>`;
 }
 
@@ -2832,34 +3164,33 @@ async function loadAreaFinancial() {
 
 function renderAreaFinancial(data, container) {
   const profitClass = data.profit >= 0 ? "fin-profit-pos" : "fin-profit-neg";
-  const profitSign = data.profit >= 0 ? "+" : "";
 
   const buildingRows = data.buildings.map(b => `
     <div class="fin-row">
       <span class="fin-label">${escapeHtml(b.building_name)}</span>
-      <span class="fin-rate muted">₪${b.monthly_rate.toLocaleString()}/חודש</span>
-      <span class="fin-value fin-revenue">₪${b.revenue_in_range.toLocaleString()}</span>
+      <span class="fin-rate muted">${formatCurrency(b.monthly_rate)}/חודש</span>
+      <span class="fin-value fin-revenue">${formatCurrency(b.revenue_in_range)}</span>
     </div>`).join("");
 
   const workerRows = data.workers.map(w => `
     <div class="fin-row">
       <span class="fin-label">${escapeHtml(w.worker_name)}</span>
-      <span class="fin-value fin-expense">-₪${w.expense_in_range.toLocaleString()}</span>
+      <span class="fin-value fin-expense">${formatCurrency(-Math.abs(w.expense_in_range))}</span>
     </div>`).join("");
 
   container.innerHTML = `
     <div class="fin-summary-bar">
       <div class="fin-kpi">
         <span class="fin-kpi-label">הכנסות</span>
-        <span class="fin-kpi-val fin-revenue">₪${data.total_revenue.toLocaleString()}</span>
+        <span class="fin-kpi-val fin-revenue">${formatCurrency(data.total_revenue)}</span>
       </div>
       <div class="fin-kpi">
         <span class="fin-kpi-label">הוצאות</span>
-        <span class="fin-kpi-val fin-expense">₪${data.total_expenses.toLocaleString()}</span>
+        <span class="fin-kpi-val fin-expense">${formatCurrency(data.total_expenses)}</span>
       </div>
       <div class="fin-kpi fin-kpi-main">
         <span class="fin-kpi-label">רווח / הפסד</span>
-        <span class="fin-kpi-val ${profitClass}">${profitSign}₪${Math.abs(data.profit).toLocaleString()}</span>
+        <span class="fin-kpi-val ${profitClass}">${formatCurrency(data.profit, { sign: true })}</span>
       </div>
     </div>
     <div class="fin-breakdown">
@@ -2897,29 +3228,27 @@ async function loadCompanyFinancial() {
 function renderCompanyFinancial(data, container) {
   renderFinancialChart(data);
   const profitClass = data.profit >= 0 ? "fin-profit-pos" : "fin-profit-neg";
-  const profitSign = data.profit >= 0 ? "+" : "";
 
   const areaRows = data.areas.map(a => {
     const pc = a.profit >= 0 ? "fin-profit-pos" : "fin-profit-neg";
-    const ps = a.profit >= 0 ? "+" : "";
     return `
       <div class="fin-area-row">
         <div class="fin-area-name">${escapeHtml(a.area_name)}</div>
         <div class="fin-area-stats">
-          <span class="fin-revenue">הכנסות ₪${a.total_revenue.toLocaleString()}</span>
-          <span class="fin-expense">הוצאות ₪${a.total_expenses.toLocaleString()}</span>
-          <span class="${pc} fin-area-profit">${ps}₪${Math.abs(a.profit).toLocaleString()}</span>
+          <span class="fin-revenue">הכנסות ${formatCurrency(a.total_revenue)}</span>
+          <span class="fin-expense">הוצאות ${formatCurrency(a.total_expenses)}</span>
+          <span class="${pc} fin-area-profit">${formatCurrency(a.profit, { sign: true })}</span>
           <button class="btn-ghost fin-area-expand-btn" onclick="toggleAreaFinBreakdown(this)">פירוט ▾</button>
         </div>
         <div class="fin-area-breakdown hidden">
           <div class="fin-breakdown-cols">
             <div>
               <div class="fin-section-title fin-revenue-title">בניינים</div>
-              ${a.buildings.map(b => `<div class="fin-row"><span class="fin-label">${escapeHtml(b.building_name)}</span><span class="fin-value fin-revenue">₪${b.revenue_in_range.toLocaleString()}</span></div>`).join("") || '<div class="muted">—</div>'}
+              ${a.buildings.map(b => `<div class="fin-row"><span class="fin-label">${escapeHtml(b.building_name)}</span><span class="fin-value fin-revenue">${formatCurrency(b.revenue_in_range)}</span></div>`).join("") || '<div class="muted">—</div>'}
             </div>
             <div>
               <div class="fin-section-title fin-expense-title">עובדים</div>
-              ${a.workers.map(w => `<div class="fin-row"><span class="fin-label">${escapeHtml(w.worker_name)}</span><span class="fin-value fin-expense">-₪${w.expense_in_range.toLocaleString()}</span></div>`).join("") || '<div class="muted">אין נוכחות</div>'}
+              ${a.workers.map(w => `<div class="fin-row"><span class="fin-label">${escapeHtml(w.worker_name)}</span><span class="fin-value fin-expense">${formatCurrency(-Math.abs(w.expense_in_range))}</span></div>`).join("") || '<div class="muted">אין נוכחות</div>'}
             </div>
           </div>
         </div>
@@ -2930,15 +3259,15 @@ function renderCompanyFinancial(data, container) {
     <div class="fin-summary-bar company-level">
       <div class="fin-kpi">
         <span class="fin-kpi-label">סה"כ הכנסות</span>
-        <span class="fin-kpi-val fin-revenue">₪${data.total_revenue.toLocaleString()}</span>
+        <span class="fin-kpi-val fin-revenue">${formatCurrency(data.total_revenue)}</span>
       </div>
       <div class="fin-kpi">
         <span class="fin-kpi-label">סה"כ הוצאות</span>
-        <span class="fin-kpi-val fin-expense">₪${data.total_expenses.toLocaleString()}</span>
+        <span class="fin-kpi-val fin-expense">${formatCurrency(data.total_expenses)}</span>
       </div>
       <div class="fin-kpi fin-kpi-main">
         <span class="fin-kpi-label">רווח / הפסד</span>
-        <span class="fin-kpi-val ${profitClass}">${profitSign}₪${Math.abs(data.profit).toLocaleString()}</span>
+        <span class="fin-kpi-val ${profitClass}">${formatCurrency(data.profit, { sign: true })}</span>
       </div>
     </div>
     <div class="fin-areas-list">${areaRows}</div>`;
@@ -3780,7 +4109,10 @@ function sidebarNav(key) {
     } else if (currentUser?.role === "WORKER") {
       if (key === "schedule") showDashboardPanel("my-schedule");
     } else {
-      // SUPER_ADMIN with no area selected — stay on dashboard, nothing to do
+      showDashboard();
+      if (key === "tickets") showDashboardPanel("overview");
+      if (key === "schedule") showDashboardPanel("areas");
+      if (key === "attendance" || key === "payroll") showDashboardPanel("financial");
     }
   }
 }
@@ -3812,6 +4144,7 @@ async function openTicketDetail(ticketId) {
 
   overlay.classList.remove("hidden");
   panel.classList.remove("hidden");
+  document.body.classList.add("detail-open");
   body.innerHTML = '<div class="loading-state">טוען קריאה...</div>';
   idEl.textContent = "";
   statusRow.innerHTML = "";
@@ -3835,6 +4168,7 @@ function closeTicketDetail(e) {
 function _doCloseTicketDetail() {
   document.getElementById("ticket-detail-overlay").classList.add("hidden");
   document.getElementById("ticket-detail-panel").classList.add("hidden");
+  document.body.classList.remove("detail-open");
   document.removeEventListener("keydown", _ticketDetailKeyHandler);
   _ticketDetailId = null;
 }
@@ -3863,7 +4197,7 @@ function renderTicketDetail(ticket) {
   const category = CATEGORY_LABELS[ticket.category] || ticket.category;
   const catIcon = CATEGORY_ICONS[ticket.category] || "";
   const supplierName = ticket.assigned_supplier?.name || "—";
-  const phone = ticket.resident_phone || "—";
+  const phone = phoneForDisplay(ticket.resident_phone);
 
   // Messages thread
   const messages = (ticket.messages || []).map(m => `
@@ -3911,13 +4245,13 @@ function renderTicketDetail(ticket) {
         <div class="td-meta-val">${escapeHtml(supplierName)}</div>
       </div>
       <div class="td-meta-item">
-        <div class="td-meta-key">טלפון מדווח</div>
+        <div class="td-meta-key">טלפון מדווח${canViewSensitiveDetails() ? "" : " (מוסתר)"}</div>
         <div class="td-meta-val">${escapeHtml(phone)}</div>
       </div>
       ${ticket.sla_due_at ? `
       <div class="td-meta-item">
         <div class="td-meta-key">יעד טיפול</div>
-        <div class="td-meta-val">${new Date(ticket.sla_due_at).toLocaleString("he-IL")}</div>
+        <div class="td-meta-val">${formatDateTimeShort(ticket.sla_due_at)}</div>
       </div>` : ""}
       <div class="td-meta-item">
         <div class="td-meta-key">נפתחה</div>
